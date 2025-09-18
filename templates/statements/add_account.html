@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Add Account - Bank Statement Parser{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h2">
+            <i class="bi bi-plus-circle text-primary"></i> Add New Account
+        </h1>
+        <p class="text-muted">
+            Create a new bank account to organize your financial statements and transactions.
+        </p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bank"></i> Account Information</h5>
+            </div>
+            <div class="card-body">
+                <!-- Display form errors -->
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <h6><i class="bi bi-exclamation-triangle"></i> Please correct the following errors:</h6>
+                        {% if form.non_field_errors %}
+                            <ul class="mb-0">
+                                {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                {% endif %}
+                
+                <form method="post" id="addAccountForm">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.bank_name|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.account_abbr|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.account_number|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.account_type|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'statements:index' %}" class="btn btn-outline-secondary me-md-2">
+                            <i class="bi bi-arrow-left"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Add Account
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Account Types -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Account Types</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="bi bi-bank text-primary me-2"></i>
+                        <strong>Bank:</strong> Chequing, savings, or business accounts
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-credit-card text-warning me-2"></i>
+                        <strong>Credit Card:</strong> Credit card accounts
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-graph-up text-success me-2"></i>
+                        <strong>Investment:</strong> RRSP, TFSA, or investment accounts
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Tips -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="bi bi-info-circle text-info me-2"></i>
+                        Use clear abbreviations (e.g., CHK for Chequing, SAV for Savings)
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-info-circle text-info me-2"></i>
+                        Account numbers are optional but helpful for reference
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-info-circle text-info me-2"></i>
+                        Choose the correct account type for proper categorization
+                    </li>
+                    <li>
+                        <i class="bi bi-info-circle text-info me-2"></i>
+                        You can upload statements after creating the account
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Existing Accounts -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-list-ul"></i> Your Accounts</h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-2">Recent accounts:</p>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-1"><i class="bi bi-credit-card text-primary me-2"></i>TD Bank Credit Card</li>
+                    <li class="mb-1"><i class="bi bi-bank text-primary me-2"></i>TD Bank Cheque Account</li>
+                    <li class="mb-1"><i class="bi bi-credit-card text-success me-2"></i>Amex Credit Card</li>
+                    <li class="mb-1"><i class="bi bi-graph-up text-success me-2"></i>Wealthsimple RRSP</li>
+                    <li class="mb-1"><i class="bi bi-graph-up text-success me-2"></i>Wealthsimple TFSA</li>
+                </ul>
+                <div class="mt-3">
+                    <a href="{% url 'statements:index' %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> View All Accounts
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('addAccountForm');
+        const bankNameField = document.querySelector('input[name="bank_name"]');
+        const accountAbbrField = document.querySelector('input[name="account_abbr"]');
+        const accountTypeField = document.querySelector('select[name="account_type"]');
+        
+        // Auto-suggest account abbreviation based on bank name
+        bankNameField.addEventListener('input', function() {
+            const bankName = this.value.toLowerCase();
+            let suggestedAbbr = '';
+            
+            if (bankName.includes('td')) {
+                suggestedAbbr = 'TD';
+            } else if (bankName.includes('rbc')) {
+                suggestedAbbr = 'RBC';
+            } else if (bankName.includes('bmo')) {
+                suggestedAbbr = 'BMO';
+            } else if (bankName.includes('cibc')) {
+                suggestedAbbr = 'CIBC';
+            } else if (bankName.includes('amex')) {
+                suggestedAbbr = 'AMEX';
+            } else if (bankName.includes('wealthsimple')) {
+                suggestedAbbr = 'WS';
+            } else if (bankName.includes('questrade')) {
+                suggestedAbbr = 'QT';
+            }
+            
+            if (suggestedAbbr && !accountAbbrField.value) {
+                accountAbbrField.value = suggestedAbbr;
+            }
+        });
+        
+        // Auto-suggest account type based on bank name
+        bankNameField.addEventListener('input', function() {
+            const bankName = this.value.toLowerCase();
+            
+            if (bankName.includes('amex') || bankName.includes('credit')) {
+                accountTypeField.value = 'CREDIT_CARD';
+            } else if (bankName.includes('wealthsimple') || bankName.includes('questrade') || bankName.includes('rrsp') || bankName.includes('tfsa')) {
+                accountTypeField.value = 'INVESTMENT';
+            } else if (bankName.includes('bank') || bankName.includes('cheque') || bankName.includes('saving')) {
+                accountTypeField.value = 'BANK';
+            }
+        });
+    });
+</script>
+{% endblock %}

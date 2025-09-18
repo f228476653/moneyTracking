@@ -1,0 +1,738 @@
+{% extends 'base.html' %}
+
+{% block title %}Financial Reports - Bank Statement Parser{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h2">
+            <i class="bi bi-graph-up text-success"></i> Financial Reports
+        </h1>
+        <p class="text-muted">
+            Analyze your financial data with interactive charts and detailed reports.
+        </p>
+    </div>
+</div>
+
+<!-- Date Range Filter -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-funnel"></i> Filter Options</h5>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="start_date" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" 
+                               value="{{ start_date }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end_date" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" 
+                               value="{{ end_date }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> Apply Filter
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Statistics -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-arrow-up-circle display-4 mb-3"></i>
+                <div class="stat-number">${{ total_ins|floatformat:2 }}</div>
+                <div class="card-text">Total In</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-danger text-white h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-arrow-down-circle display-4 mb-3"></i>
+                <div class="stat-number">${{ total_outs|floatformat:2 }}</div>
+                <div class="card-text">Total Out</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card {% if net_amount >= 0 %}bg-primary{% else %}bg-warning{% endif %} text-white h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-calculator display-4 mb-3"></i>
+                <div class="stat-number">${{ net_amount|floatformat:2 }}</div>
+                <div class="card-text">Net Amount</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Monthly Chart -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Monthly Income, Spending, Investments & Outgoing Transfers</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    <i class="bi bi-info-circle"></i> 
+                    Shows income (including IN direction transfers), actual spending (excluding investments and OUT direction transfers), investment transactions, and OUT direction transfers from BANK accounts only.
+                    <br><i class="bi bi-mouse"></i> 
+                    <strong>Click on any bar</strong> to view detailed transaction breakdown for that month and category.
+                </p>
+                <div class="chart-container">
+                    <div id="monthlyChart"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab Navigation -->
+<div class="row mb-4">
+    <div class="col-12">
+        <ul class="nav nav-tabs" id="reportTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="bank-tab" data-bs-toggle="tab" data-bs-target="#bank-details" type="button" role="tab" aria-controls="bank-details" aria-selected="true">
+                    <i class="bi bi-bank"></i> Bank Details
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="credit-tab" data-bs-toggle="tab" data-bs-target="#credit-details" type="button" role="tab" aria-controls="credit-details" aria-selected="false">
+                    <i class="bi bi-credit-card"></i> Credit Card Details
+                </button>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<!-- Tab Content -->
+<div class="tab-content" id="reportTabContent">
+    <!-- Bank Details Tab -->
+    <div class="tab-pane fade show active" id="bank-details" role="tabpanel" aria-labelledby="bank-tab">
+        <!-- Bank Account Summary -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-bank"></i> Bank Account Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% for account, data in bank_accounts.items %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card border-primary">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">
+                                            <i class="bi bi-bank text-primary"></i>
+                                            {{ account.bank_name }} - {{ account.account_abbr }}
+                                        </h6>
+                                        <small class="text-muted">{{ account.account_number }}</small>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row text-center">
+                                            <div class="col-3">
+                                                <div class="h5 text-success clickable-category" 
+                                                     data-bs-toggle="modal" 
+                                                     data-bs-target="#transactionModal"
+                                                     data-category="income"
+                                                     data-account="{{ account.id }}"
+                                                     data-amount="{{ data.income|floatformat:2 }}"
+                                                     data-transactions="{{ data.income_transactions|length }}"
+                                                     style="cursor: pointer;">
+                                                    ${{ data.income|floatformat:2 }}
+                                                </div>
+                                                <small class="text-muted">Income ({{ data.income_transactions|length }})</small>
+                                            </div>
+                                            <div class="col-3">
+                                                <div class="h5 text-danger clickable-category" 
+                                                     data-bs-toggle="modal" 
+                                                     data-bs-target="#transactionModal"
+                                                     data-category="spending"
+                                                     data-account="{{ account.id }}"
+                                                     data-amount="{{ data.spending|floatformat:2 }}"
+                                                     data-transactions="{{ data.spending_transactions|length }}"
+                                                     style="cursor: pointer;">
+                                                    ${{ data.spending|floatformat:2 }}
+                                                </div>
+                                                <small class="text-muted">Spending ({{ data.spending_transactions|length }})</small>
+                                            </div>
+                                            <div class="col-3">
+                                                <div class="h5 text-info clickable-category" 
+                                                     data-bs-toggle="modal" 
+                                                     data-bs-target="#transactionModal"
+                                                     data-category="investments"
+                                                     data-account="{{ account.id }}"
+                                                     data-amount="{{ data.investments|floatformat:2 }}"
+                                                     data-transactions="{{ data.investment_transactions|length }}"
+                                                     style="cursor: pointer;">
+                                                    ${{ data.investments|floatformat:2 }}
+                                                </div>
+                                                <small class="text-muted">Investments ({{ data.investment_transactions|length }})</small>
+                                            </div>
+                                            <div class="col-3">
+                                                <div class="h5 text-warning clickable-category" 
+                                                     data-bs-toggle="modal" 
+                                                     data-bs-target="#transactionModal"
+                                                     data-category="transfers"
+                                                     data-account="{{ account.id }}"
+                                                     data-amount="{{ data.transfers|floatformat:2 }}"
+                                                     data-transactions="{{ data.transfer_transactions|length }}"
+                                                     style="cursor: pointer;">
+                                                    ${{ data.transfers|floatformat:2 }}
+                                                </div>
+                                                <small class="text-muted">Transfers ({{ data.transfer_transactions|length }})</small>
+                                            </div>
+                                        </div>
+                                        <hr>
+                                        <div class="text-center">
+                                            <div class="h5 {% if data.net_amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                                ${{ data.net_amount|floatformat:2 }}
+                                            </div>
+                                            <small class="text-muted">Net Amount</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="col-12 text-center py-4">
+                                <i class="bi bi-bank text-muted display-4"></i>
+                                <p class="text-muted mt-3">No bank accounts found for the selected period.</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bank Summary Blocks -->
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-success">
+                            <i class="bi bi-arrow-up-circle"></i> Total Bank Income
+                        </h5>
+                        <h2 class="text-success mb-0">${{ total_ins|floatformat:2 }}</h2>
+                        <small class="text-muted">All bank accounts combined</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card border-danger">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-danger">
+                            <i class="bi bi-arrow-down-circle"></i> Total Bank Spending
+                        </h5>
+                        <h2 class="text-danger mb-0">${{ total_spending|floatformat:2 }}</h2>
+                        <small class="text-muted">All bank accounts combined</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Credit Card Details Tab -->
+    <div class="tab-pane fade" id="credit-details" role="tabpanel" aria-labelledby="credit-tab">
+        <!-- Credit Card Summary -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-credit-card text-primary"></i> Credit Card Summary
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Total Credit Card Spending -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="alert alert-primary text-center">
+                                    <h4 class="mb-0">
+                                        <i class="bi bi-calculator"></i>
+                                        Total Credit Card Spending: ${{ total_credit_spending|floatformat:2 }}
+                                    </h4>
+                                    <small class="text-muted">All credit cards combined (spending - refunds)</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            {% for account, data in credit_accounts.items %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card border-primary">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">
+                                            <i class="bi bi-credit-card text-primary"></i>
+                                            {{ account.bank_name }} - {{ account.account_abbr }}
+                                        </h6>
+                                        <small class="text-muted">{{ account.account_number }}</small>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row text-center">
+                                            <div class="col-6">
+                                                <div class="h4 text-danger clickable-credit-category" 
+                                                     data-bs-toggle="modal" 
+                                                     data-bs-target="#transactionModal"
+                                                     data-category="spending"
+                                                     data-account="{{ account.id }}"
+                                                     data-amount="{{ data.spending|floatformat:2 }}"
+                                                     data-transactions="{{ data.spending_transactions|length }}"
+                                                     style="cursor: pointer;">
+                                                    ${{ data.spending|floatformat:2 }}
+                                                </div>
+                                                <small class="text-muted">Spending ({{ data.spending_transactions|length }})</small>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="h4 text-success clickable-credit-category" 
+                                                     data-bs-toggle="modal" 
+                                                     data-bs-target="#transactionModal"
+                                                     data-category="refunds"
+                                                     data-account="{{ account.id }}"
+                                                     data-amount="{{ data.refunds|floatformat:2 }}"
+                                                     data-transactions="{{ data.refund_transactions|length }}"
+                                                     style="cursor: pointer;">
+                                                    ${{ data.refunds|floatformat:2 }}
+                                                </div>
+                                                <small class="text-muted">Refunds ({{ data.refund_transactions|length }})</small>
+                                            </div>
+                                        </div>
+                                        <hr>
+                                        <div class="text-center">
+                                            <div class="h5 {% if data.net_spending >= 0 %}text-danger{% else %}text-success{% endif %}">
+                                                ${{ data.net_spending|floatformat:2 }}
+                                            </div>
+                                            <small class="text-muted">Net Spending</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="col-12 text-center py-4">
+                                <i class="bi bi-credit-card text-muted display-4"></i>
+                                <p class="text-muted mt-3">No credit card accounts found for the selected period.</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Credit Card Transactions -->
+        {% if credit_transactions %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-list-ul"></i> Recent Credit Card Transactions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Description</th>
+                                        <th>Amount</th>
+                                        <th>Type</th>
+                                        <th>Account</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for transaction in credit_transactions|slice:":20" %}
+                                    <tr>
+                                        <td>{{ transaction.transaction_date|date:"M d, Y" }}</td>
+                                        <td>{{ transaction.item|truncatechars:50 }}</td>
+                                        <td class="{% if transaction.direction == 'IN' %}text-success{% else %}text-danger{% endif %}">
+                                            ${{ transaction.amount|floatformat:2 }}
+                                        </td>
+                                        <td>
+                                            <span class="badge {% if transaction.direction == 'IN' %}bg-success{% else %}bg-danger{% endif %}">
+                                                {{ transaction.direction }}
+                                            </span>
+                                        </td>
+                                        <td>{{ transaction.statement.account.account_abbr }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if credit_transactions.count > 20 %}
+                        <div class="text-center mt-3">
+                            <small class="text-muted">Showing first 20 of {{ credit_transactions.count }} transactions</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        // Date range picker functionality
+        const startDate = document.getElementById('start_date');
+        const endDate = document.getElementById('end_date');
+        
+        // Set default end date to today if not set
+        if (!endDate.value) {
+            const today = new Date().toISOString().split('T')[0];
+            endDate.value = today;
+        }
+        
+        // Set default start date to 1 year ago if not set
+        if (!startDate.value) {
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            startDate.value = oneYearAgo.toISOString().split('T')[0];
+        }
+        
+        // Validate date range
+        startDate.addEventListener('change', function() {
+            if (startDate.value && endDate.value && startDate.value > endDate.value) {
+                alert('Start date cannot be after end date');
+                startDate.value = '';
+            }
+        });
+        
+        endDate.addEventListener('change', function() {
+            if (startDate.value && endDate.value && startDate.value > endDate.value) {
+                alert('End date cannot be before start date');
+                endDate.value = '';
+            }
+        });
+        
+        // Monthly chart functionality
+        const monthlyDetails = {{ monthly_details|safe }};
+        
+        // Render the monthly chart
+        const chartData = {{ monthly_chart|safe }};
+        
+        // Add click handler to the chart
+        const config = {
+            responsive: true,
+            displayModeBar: false
+        };
+        
+        Plotly.newPlot('monthlyChart', chartData.data, chartData.layout, config);
+        
+        
+        // Add click event listener
+        document.getElementById('monthlyChart').on('plotly_click', function(data) {
+            const point = data.points[0];
+            const monthIndex = point.pointIndex;
+            const month = monthIndex + 1;
+            const traceName = point.data.name;
+            
+            // Get month name
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthName = monthNames[monthIndex];
+            
+            // Get transactions for this month and category
+            let transactions = [];
+            let categoryTitle = '';
+            
+            if (traceName === 'Income') {
+                transactions = monthlyDetails[month]?.income || [];
+                categoryTitle = 'Income';
+            } else if (traceName === 'Actual Spending') {
+                transactions = monthlyDetails[month]?.spending || [];
+                categoryTitle = 'Actual Spending';
+            } else if (traceName === 'Investments') {
+                transactions = monthlyDetails[month]?.investments || [];
+                categoryTitle = 'Investments';
+            } else if (traceName === 'Transfers') {
+                transactions = monthlyDetails[month]?.transfers || [];
+                categoryTitle = 'Transfers';
+            }
+            
+            // Update modal title
+            document.getElementById('transactionModalLabel').innerHTML = 
+                `<i class="bi bi-list-ul"></i> ${categoryTitle} - ${monthName} ${new Date().getFullYear()}`;
+            
+            // Populate transaction details
+            const detailsDiv = document.getElementById('modalContent');
+            
+            if (transactions.length === 0) {
+                detailsDiv.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-inbox display-4 text-muted"></i>
+                        <p class="text-muted mt-3">No transactions found for this month and category.</p>
+                    </div>
+                `;
+            } else {
+                // Calculate total
+                const total = transactions.reduce((sum, trans) => sum + trans.amount, 0);
+                
+                // Create table
+                let tableHTML = `
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i>
+                                <strong>${transactions.length}</strong> transactions totaling <strong>$${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Account</th>
+                                    <th class="text-end">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                // Sort transactions by date (newest first)
+                transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                transactions.forEach(trans => {
+                    const accountInfo = trans.account ? 
+                        `${trans.account.bank_name} - ${trans.account.account_abbr}` : 
+                        'Unknown Account';
+                    
+                    tableHTML += `
+                        <tr>
+                            <td>${new Date(trans.date).toLocaleDateString()}</td>
+                            <td>${trans.item}</td>
+                            <td>
+                                <small class="text-muted">${accountInfo}</small>
+                            </td>
+                            <td class="text-end">$${trans.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        </tr>
+                    `;
+                });
+                
+                tableHTML += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                detailsDiv.innerHTML = tableHTML;
+            }
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('transactionModal'));
+            modal.show();
+        });
+    });
+</script>
+
+<!-- Transaction Details Modal -->
+<div class="modal fade" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="transactionModalLabel">
+                    <i class="bi bi-list-ul"></i> Transaction Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modalContent">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Transaction modal functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('transactionModal');
+    const modalContent = document.getElementById('modalContent');
+    const modalTitle = document.getElementById('transactionModalLabel');
+    
+    // Store transaction data for each account and category
+    const transactionData = {
+        {% for account, data in bank_accounts.items %}
+        {{ account.id }}: {
+            income: {{ data.income_transactions|safe }},
+            spending: {{ data.spending_transactions|safe }},
+            investments: {{ data.investment_transactions|safe }},
+            transfers: {{ data.transfer_transactions|safe }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    };
+    
+    // Store credit card transaction data for each account and category
+    const creditTransactionData = {
+        {% for account, data in credit_accounts.items %}
+        {{ account.id }}: {
+            spending: {{ data.spending_transactions|safe }},
+            refunds: {{ data.refund_transactions|safe }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    };
+    
+    // Handle category clicks
+    document.querySelectorAll('.clickable-category').forEach(function(element) {
+        element.addEventListener('click', function() {
+            const category = this.getAttribute('data-category');
+            const accountId = this.getAttribute('data-account');
+            const amount = this.getAttribute('data-amount');
+            const transactionCount = this.getAttribute('data-transactions');
+            
+            // Get transactions for this account and category
+            const transactions = transactionData[accountId][category];
+            
+            // Update modal title
+            modalTitle.innerHTML = `<i class="bi bi-list-ul"></i> ${category.charAt(0).toUpperCase() + category.slice(1)} Transactions - $${amount}`;
+            
+            // Populate modal content
+            if (transactions && transactions.length > 0) {
+                let html = `
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i>
+                                <strong>${transactionCount}</strong> transactions totaling <strong>$${amount}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                transactions.forEach(function(transaction) {
+                    const amountClass = transaction.direction === 'IN' ? 'text-success' : 'text-danger';
+                    const amountPrefix = transaction.direction === 'IN' ? '+' : '-';
+                    html += `
+                        <tr>
+                            <td>${transaction.date}</td>
+                            <td>${transaction.item}</td>
+                            <td class="${amountClass}">${amountPrefix}$${transaction.amount.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                modalContent.innerHTML = html;
+            } else {
+                modalContent.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-inbox text-muted display-4"></i>
+                        <p class="text-muted mt-3">No ${category} transactions found for this account.</p>
+                    </div>
+                `;
+            }
+        });
+    });
+    
+    // Handle credit card category clicks
+    document.querySelectorAll('.clickable-credit-category').forEach(function(element) {
+        element.addEventListener('click', function() {
+            const category = this.getAttribute('data-category');
+            const accountId = this.getAttribute('data-account');
+            const amount = this.getAttribute('data-amount');
+            const transactionCount = this.getAttribute('data-transactions');
+            
+            // Get transactions for this account and category
+            const transactions = creditTransactionData[accountId][category];
+            
+            // Update modal title
+            modalTitle.innerHTML = `<i class="bi bi-credit-card"></i> ${category.charAt(0).toUpperCase() + category.slice(1)} Transactions - $${amount}`;
+            
+            // Populate modal content
+            if (transactions && transactions.length > 0) {
+                let html = `
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i>
+                                <strong>${transactionCount}</strong> transactions totaling <strong>$${amount}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                // Sort transactions by date (newest first)
+                transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                transactions.forEach(function(transaction) {
+                    const amountClass = transaction.direction === 'IN' ? 'text-success' : 'text-danger';
+                    const amountPrefix = transaction.direction === 'IN' ? '+' : '-';
+                    html += `
+                        <tr>
+                            <td>${transaction.date}</td>
+                            <td>${transaction.item}</td>
+                            <td class="${amountClass}">${amountPrefix}$${transaction.amount.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                modalContent.innerHTML = html;
+            } else {
+                modalContent.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-inbox text-muted display-4"></i>
+                        <p class="text-muted mt-3">No ${category} transactions found for this credit card account.</p>
+                    </div>
+                `;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

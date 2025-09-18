@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - Bank Statement Parser{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-4 text-center mb-4">
+            <i class="bi bi-bank2 text-primary"></i> Bank Statement Parser
+        </h1>
+        <p class="lead text-center text-muted">
+            Upload, parse, and analyze your bank statements from multiple formats
+        </p>
+    </div>
+</div>
+
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <a href="{% url 'statements:upload' %}" class="btn btn-primary btn-lg w-100">
+                            <i class="bi bi-upload"></i> Upload New Statement
+                        </a>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <a href="{% url 'statements:reports' %}" class="btn btn-success btn-lg w-100">
+                            <i class="bi bi-graph-up"></i> View Reports
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Recent Statements -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Statements</h5>
+                <a href="{% url 'statements:statement_list' %}" class="btn btn-outline-primary btn-sm">
+                    View All
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_statements %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Bank</th>
+                                    <th>Account</th>
+                                    <th>Period</th>
+                                    <th>Type</th>
+                                    <th>Uploaded</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for statement in recent_statements %}
+                                <tr>
+                                    <td>
+                                        <i class="bi bi-bank"></i> {{ statement.account.bank_name }}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ statement.account.account_abbr }}</span>
+                                        <small class="text-muted d-block">{{ statement.account.account_number|truncatechars:12 }}</small>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            {{ statement.statement_from_date|date:"M d" }} - {{ statement.statement_to_date|date:"M d, Y" }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ statement.statement_type }}</span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ statement.uploaded_at|timesince }} ago</small>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'statements:statement_detail' statement.id %}" 
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-inbox display-4 text-muted"></i>
+                        <p class="text-muted mt-3">No statements uploaded yet.</p>
+                        <a href="{% url 'statements:upload' %}" class="btn btn-primary">
+                            Upload Your First Statement
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

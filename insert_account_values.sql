@@ -1,0 +1,44 @@
+-- SQL INSERT statements for Account Values (SQLite compatible)
+-- Generated from the provided data
+
+-- Account ID 20 data
+INSERT INTO statements_accountvalue (account_id, current_value, booking_value, date_updated, created_at) VALUES
+(20, 46526.58, 34317.35, '2025-01-01 00:00:00', datetime('now')),
+(20, 40150.27, 34797.86, '2025-02-01 00:00:00', datetime('now')),
+(20, 37912.77, 35258.97, '2025-03-01 00:00:00', datetime('now')),
+(20, 38314.96, 34735.72, '2025-04-01 00:00:00', datetime('now')),
+(20, 43073.07, 35231.01, '2025-05-01 00:00:00', datetime('now')),
+(20, 42039.04, 35576.33, '2025-06-01 00:00:00', datetime('now')),
+(20, 42959.49, 36712.70, '2025-07-01 00:00:00', datetime('now'));
+
+-- Account ID 19 data
+INSERT INTO statements_accountvalue (account_id, current_value, booking_value, date_updated, created_at) VALUES
+(19, 18919.60, 18885.86, '2025-01-01 00:00:00', datetime('now')),
+(19, 19173.47, 18857.80, '2025-02-01 00:00:00', datetime('now')),
+(19, 19164.44, 18839.32, '2025-03-01 00:00:00', datetime('now')),
+(19, 20081.45, 19772.22, '2025-04-01 00:00:00', datetime('now')),
+(19, 23377.11, 23225.88, '2025-05-01 00:00:00', datetime('now')),
+(19, 25451.18, 25233.72, '2025-06-01 00:00:00', datetime('now')),
+(19, 26699.10, 26454.60, '2025-07-01 00:00:00', datetime('now'));
+
+-- Account ID 16 data
+INSERT INTO statements_accountvalue (account_id, current_value, booking_value, date_updated, created_at) VALUES
+(16, 22701.08, 20288.92, '2025-01-01 00:00:00', datetime('now')),
+(16, 22158.20, 19978.39, '2025-02-01 00:00:00', datetime('now')),
+(16, 20217.43, 18493.67, '2025-03-01 00:00:00', datetime('now')),
+(16, 19717.77, 18373.13, '2025-04-01 00:00:00', datetime('now')),
+(16, 56067.85, 33738.31, '2025-05-01 00:00:00', datetime('now')),
+(16, 56705.54, 34411.26, '2025-06-01 00:00:00', datetime('now')),
+(16, 62269.06, 35033.83, '2025-07-01 00:00:00', datetime('now')),
+(16, 63749.27, 35638.46, '2025-08-01 00:00:00', datetime('now'));
+
+-- Account ID 15 data
+INSERT INTO statements_accountvalue (account_id, current_value, booking_value, date_updated, created_at) VALUES
+(15, 7514.01, 6731.32, '2025-01-01 00:00:00', datetime('now')),
+(15, 7921.59, 7352.48, '2025-02-01 00:00:00', datetime('now')),
+(15, 8297.61, 7483.10, '2025-03-01 00:00:00', datetime('now')),
+(15, 8696.71, 7779.10, '2025-04-01 00:00:00', datetime('now')),
+(15, 12569.59, 11717.45, '2025-05-01 00:00:00', datetime('now')),
+(15, 30368.71, 30123.06, '2025-06-01 00:00:00', datetime('now')),
+(15, 31959.19, 31388.45, '2025-07-01 00:00:00', datetime('now')),
+(15, 33913.20, 32664.71, '2025-08-01 00:00:00', datetime('now'));

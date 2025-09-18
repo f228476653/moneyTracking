@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}Statements - Bank Statement Parser{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h2">
+            <i class="bi bi-list-ul text-primary"></i> Bank Statements
+        </h1>
+        <p class="text-muted">
+            View and manage all uploaded bank statements.
+        </p>
+    </div>
+</div>
+
+
+<!-- Statements List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-file-earmark-text"></i> 
+                    Statements ({{ statements|length }})
+                </h5>
+                <a href="{% url 'statements:upload' %}" class="btn btn-primary">
+                    <i class="bi bi-upload"></i> Upload New
+                </a>
+            </div>
+            <div class="card-body">
+                {% if statements %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Bank</th>
+                                    <th>Account</th>
+                                    <th>Period</th>
+                                    <th>Type</th>
+                                    <th>Transactions</th>
+                                    <th>Net Amount</th>
+                                    <th>Uploaded</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for statement in statements %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-bank text-primary me-2"></i>
+                                            <div>
+                                                <strong>{{ statement.account.bank_name }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ statement.account.account_number|truncatechars:12 }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ statement.account.account_abbr }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="text-nowrap">
+                                            <small>
+                                                {{ statement.statement_from_date|date:"M d" }} - {{ statement.statement_to_date|date:"M d, Y" }}
+                                            </small>
+                                            <br>
+                                            <span class="badge bg-info">{{ statement.statement_type }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ statement.statement_type }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ statement.statementdetail_set.count }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if statement.net_amount >= 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                            ${{ statement.net_amount|floatformat:2 }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ statement.uploaded_at|timesince }} ago</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'statements:statement_detail' statement.id %}" 
+                                               class="btn btn-outline-primary btn-sm" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <span class="btn btn-outline-secondary btn-sm disabled" title="File: {{ statement.source_file }}">
+                                                <i class="bi bi-file-text"></i>
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox display-1 text-muted"></i>
+                        <h4 class="text-muted mt-3">No statements found</h4>
+                        <p class="text-muted">
+                            Upload your first bank statement to get started.
+                        </p>
+                        <a href="{% url 'statements:upload' %}" class="btn btn-primary btn-lg">
+                            <i class="bi bi-upload"></i> Upload Statement
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Statistics -->
+{% if statements %}
+<div class="row mt-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white text-center">
+            <div class="card-body">
+                <i class="bi bi-bank display-6 mb-3"></i>
+                <h4>{{ statements|length }}</h4>
+                <p class="mb-0">Total Statements</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white text-center">
+            <div class="card-body">
+                <i class="bi bi-arrow-up-circle display-6 mb-3"></i>
+                <h4>{{ statements|length }}</h4>
+                <p class="mb-0">Banks</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white text-center">
+            <div class="card-body">
+                <i class="bi bi-calendar-check display-6 mb-3"></i>
+                <h4>{{ statements|length }}</h4>
+                <p class="mb-0">Accounts</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-warning text-white text-center">
+            <div class="card-body">
+                <i class="bi bi-graph-up display-6 mb-3"></i>
+                <h4>{{ statements|length }}</h4>
+                <p class="mb-0">File Types</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

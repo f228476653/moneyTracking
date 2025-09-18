@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load statements_extras %}
+
+{% block title %}Account Values - Bank Statement Parser{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h2">
+            <i class="bi bi-wallet2 text-primary"></i> Account Values
+        </h1>
+        <p class="text-muted">
+            Update current values for all your bank and investment accounts.
+        </p>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Bank Value</h6>
+                        <h4 class="mb-0">${{ total_bank_value|floatformat:2 }}</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-bank fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Investment Value</h6>
+                        <h4 class="mb-0">${{ total_investment_value|floatformat:2 }}</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-graph-up fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Portfolio Value</h6>
+                        <h4 class="mb-0">${{ total_value|floatformat:2 }}</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-wallet2 fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Account Values Form -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pencil-square"></i> Update Account Values
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="accountValuesForm">
+                    {% csrf_token %}
+                    
+                    <div class="alert alert-info mb-4">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Note:</strong> All fields are optional. You can update values for any accounts you want to track. Leave fields empty to skip updating that account.
+                    </div>
+                    
+                    <!-- Bank Accounts Section -->
+                    <div class="mb-4">
+                        <h6 class="text-primary mb-3">
+                            <i class="bi bi-bank"></i> Bank Accounts
+                        </h6>
+                        <div class="row">
+                            {% for account in accounts %}
+                                {% if account.account_type == 'BANK' %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card border-primary">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <div>
+                                                    <h6 class="card-title mb-1">{{ account.bank_name }}</h6>
+                                                    <small class="text-muted">{{ account.account_abbr }} - {{ account.get_account_type_display }}</small>
+                                                </div>
+                                                {% if account.id in current_values %}
+                                                <div class="text-end">
+                                                    <small class="text-success">
+                                                        <strong>Current: ${{ current_values|lookup:account.id|lookup:"value"|floatformat:2 }}</strong><br>
+                                                        <small class="text-muted">{{ current_values|lookup:account.id|lookup:"date" }}</small>
+                                                    </small>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="input-group">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" 
+                                                       name="account_{{ account.id }}" 
+                                                       class="form-control" 
+                                                       step="0.01" 
+                                                       min="0" 
+                                                       placeholder="Enter current balance (required)"
+                                                       required
+                                                       value="{% if account.id in current_values %}{{ current_values|lookup:account.id|lookup:"value" }}{% endif %}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Investment Accounts Section -->
+                    <div class="mb-4">
+                        <h6 class="text-success mb-3">
+                            <i class="bi bi-graph-up"></i> Investment Accounts
+                        </h6>
+                        <div class="row">
+                            {% for account in accounts %}
+                                {% if account.account_type == 'INVESTMENT' %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card border-success">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <div>
+                                                    <h6 class="card-title mb-1">{{ account.bank_name }}</h6>
+                                                    <small class="text-muted">{{ account.account_abbr }} - {{ account.get_account_type_display }}</small>
+                                                </div>
+                                                {% if account.id in current_values %}
+                                                <div class="text-end">
+                                                    <small class="text-success">
+                                                        <strong>Market: ${{ current_values|lookup:account.id|lookup:"value"|floatformat:2 }}</strong><br>
+                                                        {% if current_values|lookup:account.id|lookup:"booking_value" %}
+                                                        <strong>Booking: ${{ current_values|lookup:account.id|lookup:"booking_value"|floatformat:2 }}</strong><br>
+                                                        {% endif %}
+                                                        <small class="text-muted">{{ current_values|lookup:account.id|lookup:"date" }}</small>
+                                                    </small>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label small text-muted">Market Value</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">$</span>
+                                                    <input type="number" 
+                                                           name="account_{{ account.id }}" 
+                                                           class="form-control" 
+                                                           step="0.01" 
+                                                           min="0" 
+                                                           placeholder="Enter current market value (required)"
+                                                           required
+                                                           value="{% if account.id in current_values %}{{ current_values|lookup:account.id|lookup:"value" }}{% endif %}">
+                                                </div>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label small text-muted">Booking Value (Cost Basis)</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">$</span>
+                                                    <input type="number" 
+                                                           name="booking_{{ account.id }}" 
+                                                           class="form-control" 
+                                                           step="0.01" 
+                                                           min="0" 
+                                                           placeholder="Enter booking value (required)"
+                                                           required
+                                                           value="{% if account.id in current_values %}{{ current_values|lookup:account.id|lookup:"booking_value" }}{% endif %}">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                        <div>
+                            <a href="{% url 'statements:add_account' %}" class="btn btn-outline-success me-2">
+                                <i class="bi bi-plus-circle"></i> Add New Account
+                            </a>
+                            <a href="{% url 'statements:index' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Update Account Values
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Current Values Summary -->
+{% if current_values %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-check"></i> Current Values Summary
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Account</th>
+                                <th class="text-center">Type</th>
+                                <th class="text-end">Current Value</th>
+                                <th class="text-center">Last Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for account in accounts %}
+                                {% if account.id in current_values %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-{% if account.account_type == 'BANK' %}bank{% else %}graph-up{% endif %} text-{% if account.account_type == 'BANK' %}primary{% else %}success{% endif %} me-2"></i>
+                                            <div>
+                                                <strong>{{ account.bank_name }}</strong><br>
+                                                <small class="text-muted">{{ account.account_abbr }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-{% if account.account_type == 'BANK' %}primary{% else %}success{% endif %}">
+                                            {{ account.get_account_type_display }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>${{ current_values|lookup:account.id|lookup:"value"|floatformat:2 }}</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <small class="text-muted">{{ current_values|lookup:account.id|lookup:"date" }}</small>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add form validation
+        const form = document.getElementById('accountValuesForm');
+        const inputs = form.querySelectorAll('input[type="number"]');
+        
+        inputs.forEach(input => {
+            input.addEventListener('input', function() {
+                if (this.value < 0) {
+                    this.value = 0;
+                }
+            });
+        });
+        
+        // Add confirmation before submit
+        form.addEventListener('submit', function(e) {
+            const filledInputs = Array.from(inputs).filter(input => input.value && input.value > 0);
+            
+            if (filledInputs.length === 0) {
+                e.preventDefault();
+                alert('Please enter values for at least one account before submitting.');
+                return false;
+            }
+            
+            if (confirm(`Are you sure you want to update values for ${filledInputs.length} account(s)? (Empty fields will be skipped)`)) {
+                return true;
+            } else {
+                e.preventDefault();
+                return false;
+            }
+        });
+    });
+</script>
+{% endblock %}
+

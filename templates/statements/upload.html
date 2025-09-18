@@ -1,0 +1,308 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Upload Statement - Bank Statement Parser{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h2">
+            <i class="bi bi-upload text-primary"></i> Upload Bank Statement
+        </h1>
+        <p class="text-muted">
+            Upload your bank statement file and let our system automatically parse and categorize the transactions.
+            <a href="{% url 'statements:add_account' %}" class="btn btn-sm btn-outline-primary ms-2">
+                <i class="bi bi-plus-circle"></i> Add New Account
+            </a>
+        </p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-arrow-up"></i> Statement Information</h5>
+            </div>
+            <div class="card-body">
+                <!-- Display form errors -->
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <h6><i class="bi bi-exclamation-triangle"></i> Please correct the following errors:</h6>
+                        {% if form.non_field_errors %}
+                            <ul class="mb-0">
+                                {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                {% endif %}
+                
+                <form method="post" enctype="multipart/form-data" id="uploadForm">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.account|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6 mb-3" id="fileUploadField">
+                            {{ form.source_file|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <!-- Investment Fields (shown only for investment accounts) -->
+                    <div id="investmentFields" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Investment Account:</strong> Please provide the book cost and market value instead of uploading a file.
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.book_cost|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.market_value|as_crispy_field }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row" id="statementDateFields">
+                        <div class="col-12 mb-3">
+                            <h6 class="text-primary">
+                                <i class="bi bi-calendar-date"></i> Statement Period 
+                                <span class="text-danger">*</span>
+                            </h6>
+                            <p class="text-muted small mb-3">Please specify the start and end dates for this statement period.</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.statement_from_date|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.statement_to_date|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'statements:index' %}" class="btn btn-outline-secondary me-md-2">
+                            <i class="bi bi-arrow-left"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="bi bi-upload"></i> Upload Statement
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Supported Formats -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-file-earmark-check"></i> Supported Formats</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-file-earmark-text text-success me-2"></i>
+                    <span>CSV Files (.csv)</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bank Accounts -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-bank"></i> Your Bank Accounts</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-1"><i class="bi bi-credit-card text-primary me-2"></i>TD Bank Credit Card</li>
+                    <li class="mb-1"><i class="bi bi-bank text-primary me-2"></i>TD Bank Cheque Account</li>
+                    <li class="mb-1"><i class="bi bi-credit-card text-success me-2"></i>Amex Credit Card</li>
+                    <li class="mb-1"><i class="bi bi-credit-card text-info me-2"></i>CIBC Credit Card</li>
+                    <li class="mb-1"><i class="bi bi-bank text-warning me-2"></i>RBC Business Account</li>
+                    <li class="mb-1"><i class="bi bi-graph-up text-success me-2"></i>Wealthsimple RRSP</li>
+                    <li class="mb-1"><i class="bi bi-graph-up text-success me-2"></i>Wealthsimple TFSA</li>
+                    <li class="mb-1"><i class="bi bi-bank text-primary me-2"></i>BMO Cheque Account</li>
+                    <li class="mb-1"><i class="bi bi-graph-up text-primary me-2"></i>BMO RRSP</li>
+                    <li class="mb-1"><i class="bi bi-graph-up text-primary me-2"></i>BMO TFSA</li>
+                    <li class="mb-1"><i class="bi bi-graph-up text-info me-2"></i>Questrade RRSP</li>
+                    <li class="mb-1"><i class="bi bi-graph-up text-info me-2"></i>Questrade TFSA</li>
+                    <li class="mb-1"><i class="bi bi-bank text-warning me-2"></i>Co-op Business Invest</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Auto-Detection Features -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-magic"></i> Auto-Detection</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        Bank account from dropdown selection
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        Transaction dates from CSV data
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        Amount and direction (credit/debit)
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        Transaction descriptions
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        Statement period from date range
+                    </li>
+                    <li>
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        Account type from dropdown
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Tips -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="bi bi-info-circle text-info me-2"></i>
+                        Select your bank account from the dropdown for accurate categorization
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-info-circle text-info me-2"></i>
+                        Include bank name in filename for auto-detection
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-info-circle text-info me-2"></i>
+                        Ensure CSV has proper headers (Date, Description, Amount)
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-info-circle text-info me-2"></i>
+                        File size should be under 10MB
+                    </li>
+                    <li>
+                        <i class="bi bi-info-circle text-info me-2"></i>
+                        You can leave optional fields blank for auto-detection
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Progress Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadModalLabel">
+                    <i class="bi bi-hourglass-split"></i> Processing Statement
+                </h5>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mb-0">Please wait while we parse your bank statement...</p>
+                    <small class="text-muted">This may take a few moments for large files.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Account data from Django
+    const accountsData = {{ accounts_data|safe }};
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('uploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const uploadModal = new bootstrap.Modal(document.getElementById('uploadModal'));
+        
+        form.addEventListener('submit', function(e) {
+            // Show loading modal
+            uploadModal.show();
+            
+            // Disable submit button
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+        });
+        
+        // Account dropdown change handler
+        const accountDropdown = document.getElementById('account_dropdown');
+        const investmentFields = document.getElementById('investmentFields');
+        const fileUploadField = document.getElementById('fileUploadField');
+        const statementDateFields = document.getElementById('statementDateFields');
+        
+        function toggleFields() {
+            const selectedAccountId = accountDropdown.value;
+            
+            // Check if this is an investment account
+            let isInvestmentAccount = false;
+            
+            if (selectedAccountId) {
+                // Get account type from accounts data
+                const account = accountsData.find(acc => acc.id == selectedAccountId);
+                if (account) {
+                    isInvestmentAccount = account.account_type === 'INVESTMENT';
+                }
+            }
+            
+            // Show/hide investment fields, file upload, and statement date fields
+            if (isInvestmentAccount) {
+                investmentFields.style.display = 'block';
+                fileUploadField.style.display = 'none';
+                statementDateFields.style.display = 'none';
+                
+                // Make date fields optional for investment accounts
+                const dateInputs = statementDateFields.querySelectorAll('input[type="date"]');
+                dateInputs.forEach(input => {
+                    input.required = false;
+                });
+            } else {
+                investmentFields.style.display = 'none';
+                fileUploadField.style.display = 'block';
+                statementDateFields.style.display = 'block';
+                
+                // Make date fields required for bank accounts
+                const dateInputs = statementDateFields.querySelectorAll('input[type="date"]');
+                dateInputs.forEach(input => {
+                    input.required = true;
+                });
+            }
+        }
+        
+        accountDropdown.addEventListener('change', toggleFields);
+        
+        // Initialize fields on page load
+        toggleFields();
+        
+        // File input change handler
+        const fileInput = document.querySelector('input[type="file"]');
+        
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Update field visibility based on account type
+                toggleFields();
+            }
+        });
+    });
+</script>
+{% endblock %}

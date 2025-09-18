@@ -1,0 +1,479 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Investment Summary - Bank Statement Parser{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h2">
+            <i class="bi bi-graph-up text-success"></i> Investment Summary
+        </h1>
+        <p class="text-muted">
+            Overview of all your investment accounts and their performance.
+        </p>
+    </div>
+</div>
+
+<!-- Filter Form -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-funnel"></i> Filter Investment Data
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="{{ filter_form.start_date.id_for_label }}" class="form-label">Start Date</label>
+                        {{ filter_form.start_date }}
+                    </div>
+                    <div class="col-md-3">
+                        <label for="{{ filter_form.end_date.id_for_label }}" class="form-label">End Date</label>
+                        {{ filter_form.end_date }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ filter_form.account_filter.id_for_label }}" class="form-label">Account</label>
+                        {{ filter_form.account_filter }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> Filter
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                {% if request.GET %}
+                <div class="mt-3">
+                    <a href="{% url 'statements:investment_detail' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-x-circle"></i> Clear Filters
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Book Cost</h6>
+                        <h4 class="mb-0">${{ total_book_cost|floatformat:2 }}</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-currency-dollar fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Market Value</h6>
+                        <h4 class="mb-0">${{ total_market_value|floatformat:2 }}</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-graph-up fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card {% if total_gain_loss >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Gain/Loss</h6>
+                        <h4 class="mb-0">${{ total_gain_loss|floatformat:2 }}</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-{% if total_gain_loss >= 0 %}arrow-up{% else %}arrow-down{% endif %} fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card {% if total_gain_loss_percentage >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Gain/Loss %</h6>
+                        <h4 class="mb-0">{{ total_gain_loss_percentage|floatformat:2 }}%</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-percent fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-bar-chart text-primary"></i> Account Values Report
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-light clickable-account-total" 
+                             data-bs-toggle="modal" 
+                             data-bs-target="#accountDetailsModal"
+                             data-account-type="bank"
+                             data-total="{{ total_bank_amount|floatformat:2 }}"
+                             data-account-count="{{ bank_account_details|length }}"
+                             style="cursor: pointer;">
+                            <div class="card-body text-center">
+                                <h6 class="card-title text-muted">Bank Accounts Total</h6>
+                                <h3 class="text-primary">${{ total_bank_amount|floatformat:2 }}</h3>
+                                <small class="text-muted">Latest update from all bank accounts ({{ bank_account_details|length }} accounts)</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light clickable-account-total" 
+                             data-bs-toggle="modal" 
+                             data-bs-target="#accountDetailsModal"
+                             data-account-type="investment"
+                             data-total="{{ total_investment_amount|floatformat:2 }}"
+                             data-account-count="{{ investment_account_details|length }}"
+                             style="cursor: pointer;">
+                            <div class="card-body text-center">
+                                <h6 class="card-title text-muted">Investment Accounts Total</h6>
+                                <h3 class="text-success">${{ total_investment_amount|floatformat:2 }}</h3>
+                                <small class="text-muted">Latest update from all investment accounts ({{ investment_account_details|length }} accounts)</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-primary text-white clickable-account-total" 
+                             data-bs-toggle="modal" 
+                             data-bs-target="#accountDetailsModal"
+                             data-account-type="total"
+                             data-total="{{ total_values|floatformat:2 }}"
+                             data-account-count="{{ bank_account_details|length|add:investment_account_details|length }}"
+                             style="cursor: pointer;">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">Total Values</h6>
+                                <h3>${{ total_values|floatformat:2 }}</h3>
+                                <small>Combined value of all accounts ({{ bank_account_details|length|add:investment_account_details|length }} accounts)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Total Values Trend Chart -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-graph-up text-success"></i> Total Values Trend
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if total_values_chart %}
+                    <div class="chart-container">
+                        <div id="total-values-chart"></div>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            Shows the trend of total account values over time, including both bank and investment accounts.
+                        </small>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-graph-up text-muted" style="font-size: 4rem;"></i>
+                        <h4 class="text-muted mt-3">No Trend Data Available</h4>
+                        <p class="text-muted">No historical account value data available for trend analysis.</p>
+                        <a href="{% url 'statements:account_values' %}" class="btn btn-primary">
+                            <i class="bi bi-wallet2"></i> Update Account Values
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Investment Value Chart -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-graph-up text-success"></i> Investment Account Values Over Time
+                    <span class="badge bg-primary ms-2">{{ account_summaries|length }} Accounts</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if investment_value_chart %}
+                    <div class="chart-container">
+                        <div id="investment-value-chart"></div>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            Solid lines represent market values, dashed lines represent booking values (cost basis).
+                        </small>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-graph-up text-muted" style="font-size: 4rem;"></i>
+                        <h4 class="text-muted mt-3">No Investment Value Data</h4>
+                        <p class="text-muted">No historical account value data available for investment accounts.</p>
+                        <a href="{% url 'statements:account_values' %}" class="btn btn-primary">
+                            <i class="bi bi-wallet2"></i> Update Account Values
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Action Buttons -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between">
+            <a href="{% url 'statements:index' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+            <a href="{% url 'statements:account_values' %}" class="btn btn-primary">
+                <i class="bi bi-wallet2"></i> Update Account Values
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Account Details Modal -->
+<div class="modal fade" id="accountDetailsModal" tabindex="-1" aria-labelledby="accountDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="accountDetailsModalLabel">
+                    <i class="bi bi-list-ul"></i> Account Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="accountDetailsContent">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Render total values trend chart if available
+    {% if total_values_chart %}
+    const totalValuesChartData = {{ total_values_chart|safe }};
+    const totalValuesConfig = {
+        responsive: true,
+        displayModeBar: false
+    };
+    Plotly.newPlot('total-values-chart', totalValuesChartData.data, totalValuesChartData.layout, totalValuesConfig);
+    {% endif %}
+    
+    // Render investment value chart if available
+    {% if investment_value_chart %}
+    const investmentChartData = {{ investment_value_chart|safe }};
+    const investmentConfig = {
+        responsive: true,
+        displayModeBar: false
+    };
+    Plotly.newPlot('investment-value-chart', investmentChartData.data, investmentChartData.layout, investmentConfig);
+    {% endif %}
+    
+    // Account details modal functionality
+    const modal = document.getElementById('accountDetailsModal');
+    const modalContent = document.getElementById('accountDetailsContent');
+    const modalTitle = document.getElementById('accountDetailsModalLabel');
+    
+    console.log('Modal elements found:');
+    console.log('Modal:', modal);
+    console.log('Modal content:', modalContent);
+    console.log('Modal title:', modalTitle);
+    
+    // Store account data for JavaScript - using direct template rendering
+    const accountData = {
+        bank: {{ bank_account_details|safe }},
+        investment: {{ investment_account_details|safe }}
+    };
+    
+    // Debug: Check if data is loaded
+    console.log('Account Data loaded:', accountData);
+    console.log('Bank accounts count:', accountData.bank ? accountData.bank.length : 'undefined');
+    console.log('Investment accounts count:', accountData.investment ? accountData.investment.length : 'undefined');
+    
+    // Handle account total clicks
+    const clickableElements = document.querySelectorAll('.clickable-account-total');
+    console.log('Found clickable elements:', clickableElements.length);
+    
+    clickableElements.forEach(function(element) {
+        element.addEventListener('click', function() {
+            console.log('Modal clicked!');
+            
+            const accountType = this.getAttribute('data-account-type');
+            const total = this.getAttribute('data-total');
+            const accountCount = this.getAttribute('data-account-count');
+            
+            console.log('Account type:', accountType);
+            console.log('Total:', total);
+            console.log('Account count:', accountCount);
+            
+            let title = '';
+            let accounts = [];
+            
+            if (accountType === 'bank') {
+                title = 'Bank Accounts Details';
+                accounts = accountData.bank || [];
+            } else if (accountType === 'investment') {
+                title = 'Investment Accounts Details';
+                accounts = accountData.investment || [];
+            } else if (accountType === 'total') {
+                title = 'All Accounts Details';
+                accounts = [...(accountData.bank || []), ...(accountData.investment || [])];
+            }
+            
+            console.log('Selected accounts:', accounts);
+            
+            // Update modal title
+            modalTitle.innerHTML = `<i class="bi bi-list-ul"></i> ${title} - $${total}`;
+            
+            // Debug: Log what we're working with
+            console.log('Modal click - accountType:', accountType, 'accounts:', accounts);
+            
+            // Populate modal content
+            if (accounts && accounts.length > 0) {
+                // Sort accounts by current value (highest first)
+                accounts.sort((a, b) => parseFloat(b.current_value) - parseFloat(a.current_value));
+                
+                // Calculate the actual sum to verify
+                const actualSum = accounts.reduce((sum, account) => sum + parseFloat(account.current_value), 0);
+                const actualSumFormatted = actualSum.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+                
+                let html = `
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i>
+                                <strong>${accountCount}</strong> accounts totaling <strong>$${total}</strong>
+                                <br><small class="text-muted">Calculated sum: $${actualSumFormatted} ${Math.abs(actualSum - parseFloat(total)) < 0.01 ? '✓' : '⚠️'}</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Bank</th>
+                                    <th>Account</th>
+                                    <th>Account Number</th>
+                                    <th class="text-end">Current Value</th>
+                                    <th class="text-end">Booking Value</th>
+                                    <th>Last Updated</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                accounts.forEach(function(account, index) {
+                    const currentValue = parseFloat(account.current_value).toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    
+                    const bookingValue = account.booking_value ? 
+                        parseFloat(account.booking_value).toLocaleString('en-US', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) : 'N/A';
+                    
+                    const lastUpdated = new Date(account.latest_update).toLocaleDateString();
+                    
+                    html += `
+                        <tr>
+                            <td><strong>${index + 1}</strong></td>
+                            <td><strong>${account.account.bank_name}</strong></td>
+                            <td>${account.account.account_abbr}</td>
+                            <td><small class="text-muted">${account.account.account_number}</small></td>
+                            <td class="text-end"><strong>$${currentValue}</strong></td>
+                            <td class="text-end">${account.booking_value ? '$' + bookingValue : 'N/A'}</td>
+                            <td><small class="text-muted">${lastUpdated}</small></td>
+                        </tr>
+                    `;
+                });
+                
+                // Add total row
+                html += `
+                        <tr class="table-success">
+                            <td colspan="4"><strong>TOTAL</strong></td>
+                            <td class="text-end"><strong>$${actualSumFormatted}</strong></td>
+                            <td class="text-end">-</td>
+                            <td>-</td>
+                        </tr>
+                `;
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                modalContent.innerHTML = html;
+                console.log('Modal content populated with', accounts.length, 'accounts');
+            } else {
+                console.log('No accounts found, showing empty message');
+                modalContent.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-inbox text-muted display-4"></i>
+                        <p class="text-muted mt-3">No account data available.</p>
+                        <p class="text-muted">Debug: accounts = ${JSON.stringify(accounts)}</p>
+                    </div>
+                `;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

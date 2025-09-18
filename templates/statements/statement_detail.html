@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ statement.account.bank_name }} Statement - Bank Statement Parser{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'statements:index' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'statements:statement_list' %}">Statements</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ statement.account.bank_name }}</li>
+            </ol>
+        </nav>
+        
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h2">
+                    <i class="bi bi-bank text-primary"></i> {{ statement.account.bank_name }}
+                </h1>
+                <p class="text-muted">
+                    Statement period: {{ statement.statement_from_date|date:"M d, Y" }} - {{ statement.statement_to_date|date:"M d, Y" }}
+                </p>
+            </div>
+            <div class="btn-group">
+                <a href="{% url 'statements:statement_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to List
+                </a>
+                <span class="btn btn-outline-primary disabled">
+                    <i class="bi bi-file-text"></i> {{ statement.source_file }}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statement Summary -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white text-center">
+            <div class="card-body">
+                <i class="bi bi-arrow-up-circle display-6 mb-3"></i>
+                <h4>${{ total_ins|floatformat:2 }}</h4>
+                <p class="mb-0">Total In</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-danger text-white text-center">
+            <div class="card-body">
+                <i class="bi bi-arrow-down-circle display-6 mb-3"></i>
+                <h4>${{ total_outs|floatformat:2 }}</h4>
+                <p class="mb-0">Total Out</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card {% if net_amount >= 0 %}bg-success{% else %}bg-warning{% endif %} text-white text-center">
+            <div class="card-body">
+                <i class="bi bi-calculator display-6 mb-3"></i>
+                <h4>${{ net_amount|floatformat:2 }}</h4>
+                <p class="mb-0">Net Amount</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white text-center">
+            <div class="card-body">
+                <i class="bi bi-list-ul display-6 mb-3"></i>
+                <h4>{{ transactions|length }}</h4>
+                <p class="mb-0">Transactions</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statement Details -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Statement Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong>Bank:</strong></td>
+                        <td>{{ statement.account.bank_name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Account:</strong></td>
+                        <td>{{ statement.account.account_number }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Account Type:</strong></td>
+                        <td><span class="badge bg-secondary">{{ statement.account.account_abbr }}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Statement Type:</strong></td>
+                        <td><span class="badge bg-info">{{ statement.statement_type }}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Period:</strong></td>
+                        <td>{{ statement.statement_from_date|date:"M d, Y" }} - {{ statement.statement_to_date|date:"M d, Y" }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Uploaded:</strong></td>
+                        <td>{{ statement.uploaded_at|date:"M d, Y H:i" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Transaction Timeline</h5>
+            </div>
+            <div class="card-body">
+                {% if transaction_chart %}
+                    <div id="transaction-chart" class="chart-container"></div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-graph-up text-muted display-4"></i>
+                        <p class="text-muted mt-2">No chart data available</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transactions Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-ul"></i> 
+                    Transactions ({{ transactions|length }})
+                </h5>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="exportToCSV()">
+                        <i class="bi bi-download"></i> Export CSV
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="transactions-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Direction</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in transactions %}
+                                <tr>
+                                    <td>
+                                        <div class="text-nowrap">
+                                            <strong>{{ transaction.transaction_date|date:"M d, Y" }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ transaction.transaction_date|date:"D" }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ transaction.item|truncatechars:50 }}</strong>
+                                            {% if transaction.item|length > 50 %}
+                                                <br>
+                                                <small class="text-muted">{{ transaction.item }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if transaction.direction == 'IN' %}bg-success{% else %}bg-danger{% endif %} fs-6">
+                                            ${{ transaction.amount|floatformat:2 }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if transaction.direction == 'IN' %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ transaction.direction }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox display-1 text-muted"></i>
+                        <h4 class="text-muted mt-3">No transactions found</h4>
+                        <p class="text-muted">This statement doesn't contain any transactions.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart Script -->
+{% if transaction_chart %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var chartData = {{ transaction_chart|safe }};
+        Plotly.newPlot('transaction-chart', chartData.data, chartData.layout, {
+            responsive: true,
+            displayModeBar: false
+        });
+    });
+</script>
+{% endif %}
+
+<!-- Export Script -->
+<script>
+function exportToCSV() {
+    const table = document.getElementById('transactions-table');
+    const rows = table.querySelectorAll('tbody tr');
+    
+    let csv = 'Date,Description,Amount,Direction\n';
+    
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        const date = cells[0].querySelector('strong').textContent.trim();
+        const description = cells[1].querySelector('strong').textContent.trim();
+        const amount = cells[2].textContent.trim();
+        const direction = cells[3].textContent.trim();
+        
+        csv += `"${date}","${description}","${amount}","${direction}"\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '{{ statement.account.bank_name }}_transactions_{{ statement.statement_from_date|date:"Y-m-d" }}.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}
