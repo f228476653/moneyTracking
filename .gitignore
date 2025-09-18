@@ -159,3 +159,32 @@ logs/
 
 # Google Cloud
 .gcloudignore
+
+# Service account keys
+*.json
+!package.json
+!package-lock.json
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+
+# Google Cloud credentials
+credentials.json
+service-account-key.json
+gcp-key.json
+
+# Database files
+*.db
+*.sqlite3
+*.sqlite3-journal
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
