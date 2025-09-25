@@ -19,7 +19,23 @@ SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-this-in-productio
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool('DEBUG', default=True)
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+# Get ALLOWED_HOSTS from environment or use defaults
+default_hosts = ['localhost', '127.0.0.1', '0.0.0.0', 'web', 'money-tracking-571621744981.us-central1.run.app']
+env_hosts = env.list('ALLOWED_HOSTS', default=[])
+ALLOWED_HOSTS = env_hosts if env_hosts else default_hosts
+
+# Ensure GCP hosts are always included for production
+gcp_hosts = [
+    'money-tracking-571621744981.us-central1.run.app',
+    'money-tracking-k34yixapva-uc.a.run.app',  # Current Cloud Run URL
+    '*.run.app',  # Wildcard for all Google Cloud Run apps
+    '*.us-central1.run.app',  # Wildcard for us-central1 region
+    '*.a.run.app',  # Wildcard for the new Cloud Run domain format
+]
+
+for host in gcp_hosts:
+    if host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
 
 # Application definition
 INSTALLED_APPS = [
@@ -75,6 +91,7 @@ if env('DB_ENGINE', default='django.db.backends.sqlite3') == 'django.db.backends
         }
     }
 else:
+    # PostgreSQL configuration for production
     DATABASES = {
         'default': {
             'ENGINE': env('DB_ENGINE'),
@@ -83,8 +100,21 @@ else:
             'PASSWORD': env('DB_PASSWORD'),
             'HOST': env('DB_HOST'),
             'PORT': env('DB_PORT'),
+            'OPTIONS': {
+                'sslmode': 'require',
+            },
         }
     }
+    
+    # Add connection debugging in development
+    if DEBUG:
+        print(f"Database configuration:")
+        print(f"  ENGINE: {env('DB_ENGINE')}")
+        print(f"  NAME: {env('DB_NAME')}")
+        print(f"  USER: {env('DB_USER')}")
+        print(f"  HOST: {env('DB_HOST')}")
+        print(f"  PORT: {env('DB_PORT')}")
+        print(f"  PASSWORD: {'*' * len(env('DB_PASSWORD', default=''))}")
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -139,6 +169,12 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 # CSRF Security
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = True
+CSRF_TRUSTED_ORIGINS = [
+    'https://money-tracking-571621744981.us-central1.run.app',
+    'https://*.run.app',
+]
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_USE_SESSIONS = False
 
 # Password Security
 PASSWORD_HASHERS = [
