@@ -165,21 +165,17 @@ class AmexCreditCardParser(BaseStatementParser):
             
             # Determine direction based on description and amount
             # For Amex credit cards:
-            # - Negative amounts are typically charges (OUT) 
-            # - But some negative amounts can be refunds (IN) - need to check description
-            # - Positive amounts are typically charges (OUT) - this is the key insight!
+            # - Negative amounts can be either charges (OUT) or refunds (IN)
+            # - If description contains "PAYMENT RECEIVED", it's a payment (OUT)
+            # - If description does NOT contain "PAYMENT RECEIVED", negative amounts are refunds (IN)
+            # - Positive amounts are typically charges (OUT)
             
-            # Check if this is a refund (negative amount that should be IN)
             if is_negative:
-                # Look for refund indicators in description
-                # WEB QP typically indicates a refund/credit
-                refund_keywords = ['REFUND', 'CREDIT', 'ADJUSTMENT', 'REVERSAL', 'RETURN']
-                is_refund = any(keyword in description.upper() for keyword in refund_keywords) or 'WEB QP' in description.upper()
-                
-                if is_refund:
-                    direction = 'IN'  # Refund - money coming back to you
+                # Check if this is a payment received (which should be OUT direction)
+                if 'PAYMENT RECEIVED' in description.upper():
+                    direction = 'OUT'  # Payment received - money going out to pay the card
                 else:
-                    direction = 'OUT'  # Charge - money going out
+                    direction = 'IN'   # Refund - money coming back to you
             else:
                 direction = 'OUT'  # Positive amount is typically a charge (money going out)
             
