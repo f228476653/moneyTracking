@@ -20,7 +20,7 @@ class AccountValueForm(forms.Form):
                         'class': 'form-control',
                         'step': '0.01',
                         'min': '0',
-                        'placeholder': f'Enter current value for {account.account_abbr} (optional)'
+                        'placeholder': f'Enter current value for {account.account_abbr}'
                     }),
                     label=f'{account.bank_name} - {account.account_abbr}',
                     help_text=f'{account.get_account_type_display()} Account - Market Value (Optional)'
@@ -37,7 +37,7 @@ class AccountValueForm(forms.Form):
                             'class': 'form-control',
                             'step': '0.01',
                             'min': '0',
-                            'placeholder': f'Enter booking value for {account.account_abbr} (optional)'
+                            'placeholder': f'Enter booking value for {account.account_abbr}'
                         }),
                         label=f'{account.bank_name} - {account.account_abbr} (Booking Value)',
                         help_text='Original cost basis (Optional)'

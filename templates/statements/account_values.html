@@ -82,7 +82,7 @@
                     
                     <div class="alert alert-info mb-4">
                         <i class="bi bi-info-circle"></i>
-                        <strong>Note:</strong> All fields are optional. You can update values for any accounts you want to track. Leave fields empty to skip updating that account.
+                        <strong>Note:</strong> All fields are optional. You can update values for any accounts you want to track, or leave all fields empty if you don't want to update any accounts.
                     </div>
                     
                     <!-- Bank Accounts Section -->
@@ -117,8 +117,7 @@
                                                        class="form-control" 
                                                        step="0.01" 
                                                        min="0" 
-                                                       placeholder="Enter current balance (required)"
-                                                       required
+                                                       placeholder="Enter current balance"
                                                        value="{% if account.id in current_values %}{{ current_values|lookup:account.id|lookup:"value" }}{% endif %}">
                                             </div>
                                         </div>
@@ -166,8 +165,7 @@
                                                            class="form-control" 
                                                            step="0.01" 
                                                            min="0" 
-                                                           placeholder="Enter current market value (required)"
-                                                           required
+                                                           placeholder="Enter current market value"
                                                            value="{% if account.id in current_values %}{{ current_values|lookup:account.id|lookup:"value" }}{% endif %}">
                                                 </div>
                                             </div>
@@ -180,8 +178,7 @@
                                                            class="form-control" 
                                                            step="0.01" 
                                                            min="0" 
-                                                           placeholder="Enter booking value (required)"
-                                                           required
+                                                           placeholder="Enter booking value"
                                                            value="{% if account.id in current_values %}{{ current_values|lookup:account.id|lookup:"booking_value" }}{% endif %}">
                                                 </div>
                                             </div>
@@ -286,23 +283,34 @@
             });
         });
         
-        // Add confirmation before submit
+        // Add confirmation before submit (only if fields are filled)
         form.addEventListener('submit', function(e) {
             const filledInputs = Array.from(inputs).filter(input => input.value && input.value > 0);
             
-            if (filledInputs.length === 0) {
-                e.preventDefault();
-                alert('Please enter values for at least one account before submitting.');
-                return false;
+            // Only show confirmation if there are filled inputs
+            if (filledInputs.length > 0) {
+                if (confirm(`Are you sure you want to update values for ${filledInputs.length} account(s)? (Empty fields will be skipped)`)) {
+                    return true;
+                } else {
+                    e.preventDefault();
+                    return false;
+                }
             }
-            
-            if (confirm(`Are you sure you want to update values for ${filledInputs.length} account(s)? (Empty fields will be skipped)`)) {
-                return true;
-            } else {
-                e.preventDefault();
-                return false;
-            }
+            // If no fields are filled, allow submission without confirmation
+            return true;
         });
+        
+        // Clear form fields after successful submission (when page reloads with success message)
+        {% if messages %}
+            {% for message in messages %}
+                {% if message.tags == 'success' %}
+                    // Clear all form fields when success message is shown
+                    inputs.forEach(input => {
+                        input.value = '';
+                    });
+                {% endif %}
+            {% endfor %}
+        {% endif %}
     });
 </script>
 {% endblock %}

@@ -33,10 +33,16 @@ def account_values(request):
                     )
                     created_count += 1
             
-            messages.success(
-                request, 
-                f'Successfully updated current values for {created_count} account(s).'
-            )
+            if created_count > 0:
+                messages.success(
+                    request, 
+                    f'✅ Successfully updated values for {created_count} account(s)!'
+                )
+            else:
+                messages.info(
+                    request, 
+                    'No values were updated. All fields are optional - you can leave them empty if you don\'t want to update any accounts.'
+                )
             
             return redirect('statements:account_values')
     else:

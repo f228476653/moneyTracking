@@ -18,7 +18,7 @@ class Statement(models.Model):
     source_file = models.CharField(max_length=255, null=True, blank=True)
     statement_from_date = models.DateField()
     statement_to_date = models.DateField()
-    statement_type = models.CharField(max_length=10, choices=STATEMENT_TYPES)
+    statement_type = models.CharField(max_length=20, choices=STATEMENT_TYPES)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

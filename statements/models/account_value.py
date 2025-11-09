@@ -13,6 +13,8 @@ class AccountValue(models.Model):
         max_digits=15, 
         decimal_places=2,
         validators=[MinValueValidator(Decimal('0.00'))],
+        null=True,
+        blank=True,
         help_text='Current value/balance of the account'
     )
     booking_value = models.DecimalField(

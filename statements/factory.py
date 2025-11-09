@@ -14,6 +14,7 @@ from .text_parser import TextStatementParser
 from .wealthsimple_parser import WealthsimpleRRSPParser
 from .rbc_business_parser import RBCBusinessParser
 from .eq_joint_parser import EQJointParser
+from .bmo_parser import BMOBankParser
 
 
 class StatementParserFactory:
@@ -27,6 +28,7 @@ class StatementParserFactory:
             TDCreditCardParser(),      # Add TD credit card parser fourth for priority
             RBCBusinessParser(),       # Add RBC Business parser for specific CSV format
             EQJointParser(),           # Add EQ Joint parser for specific CSV format
+            BMOBankParser(),           # Add BMO Bank parser for specific CSV format
             CSVStatementParser(),
             ExcelStatementParser(),
             TextStatementParser(),
