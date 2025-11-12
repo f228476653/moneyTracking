@@ -160,21 +160,32 @@ logs/
 # Google Cloud
 .gcloudignore
 
-# Service account keys
+# Service account keys - NEVER COMMIT THESE!
 *.json
 !package.json
 !package-lock.json
+github-key.json
+github-actions-key.json
+*-key.json
 
-# Environment files
+# Environment files - NEVER COMMIT THESE!
 .env
-.env.local
-.env.production
-.env.staging
+.env.*
+!.env.example
 
-# Google Cloud credentials
+# Google Cloud credentials - NEVER COMMIT THESE!
 credentials.json
 service-account-key.json
 gcp-key.json
+*-credentials.json
+
+# SSH keys and certificates - NEVER COMMIT THESE!
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
 
 # Database files
 *.db

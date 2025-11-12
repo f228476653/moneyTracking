@@ -1,4 +1,4 @@
-name: Test
+name: Tests
 
 on:
   pull_request:
@@ -8,30 +8,53 @@ on:
 
 jobs:
   test:
+    name: Run Tests
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
-    
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    
+
     - name: Run Django checks
+      env:
+        SECRET_KEY: test-secret-key-for-ci
+        DEBUG: False
       run: |
         python manage.py check
         python manage.py check --deploy
-    
+
+    - name: Run unit tests
+      env:
+        SECRET_KEY: test-secret-key-for-ci
+        DEBUG: False
+      run: |
+        python manage.py test statements.tests --verbosity=2
+
     - name: Collect static files (dry run)
+      env:
+        SECRET_KEY: test-secret-key-for-ci
+        DEBUG: False
       run: |
         python manage.py collectstatic --noinput --dry-run
-    
+
     - name: Lint with flake8
       run: |
         pip install flake8
@@ -39,9 +62,35 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # Exit-zero treats all errors as warnings
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    
+
     - name: Test imports
+      env:
+        SECRET_KEY: test-secret-key-for-ci
+        DEBUG: False
       run: |
         python -c "import django; django.setup()"
         python -c "from statements.models import *"
         python -c "from accounts.models import *"
+
+    - name: Check for missing migrations
+      env:
+        SECRET_KEY: test-secret-key-for-ci
+        DEBUG: False
+      run: |
+        python manage.py makemigrations --check --dry-run
+
+  test-summary:
+    name: Test Summary
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+    - name: Check test results
+      run: |
+        if [ "${{ needs.test.result }}" == "success" ]; then
+          echo "✅ All tests passed!"
+        else
+          echo "❌ Tests failed!"
+          exit 1
+        fi

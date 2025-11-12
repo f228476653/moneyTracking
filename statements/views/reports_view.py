@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.db.models import Sum, Count, Q, Avg
+from django.db.models import Sum, Count, Q, Avg, Prefetch
 from django.utils import timezone
 from django.db import models
 from django.contrib.auth.decorators import login_required
@@ -8,7 +8,9 @@ from decimal import Decimal
 import plotly.graph_objs as go
 import plotly.utils
 
-from ..models import StatementDetail, Account, AccountValue, InvestmentData
+from ..models import StatementDetail, Account, AccountValue, InvestmentData, Statement
+from ..utils import aggregate_transactions_by_category
+from ..constants import ACCOUNT_TYPE_BANK, ACCOUNT_TYPE_CREDIT_CARD, ACCOUNT_TYPE_INVESTMENT
 
 
 @login_required
@@ -57,93 +59,38 @@ def reports(request):
         total=Sum('amount')
     )['total'] or Decimal('0.00')
     
-    # BANK account dashboard with same categorization logic as home page
-    bank_accounts = Account.objects.filter(account_type='BANK')
+    # BANK account dashboard - optimized with prefetch to avoid N+1 queries
+    bank_accounts = Account.objects.filter(account_type=ACCOUNT_TYPE_BANK).prefetch_related(
+        Prefetch(
+            'statements',
+            queryset=Statement.objects.prefetch_related('statementdetail_set')
+        )
+    )
+
     bank_by_account = {}
     for account in bank_accounts:
-        account_transactions = transactions.filter(statement__account=account)
-        
-        # Apply same categorization logic as home page
-        income = Decimal('0.00')
-        spending = Decimal('0.00')
-        investments = Decimal('0.00')
-        transfers = Decimal('0.00')
-        
-        # Store detailed transactions for each category
-        income_transactions = []
-        spending_transactions = []
-        investment_transactions = []
-        transfer_transactions = []
-        
-        for transaction in account_transactions:
-            # Check if it's a transfer (EQ BANK or PAY EMP-VENDOR) - only OUT direction
-            is_transfer = (
-                transaction.direction == 'OUT' and (
-                    'EQ BANK' in transaction.item.upper() or 
-                    'PAY EMP-VENDOR' in transaction.item.upper()
-                )
-            )
-            
-            # Check if it's an investment transaction (only OUT direction transactions)
-            is_investment = (
-                transaction.direction == 'OUT' and (
-                    'INVESTMENTS' in transaction.item.upper() or 
-                    'QUESTRADE' in transaction.item.upper() or 
-                    'MUTUAL FUNDS' in transaction.item.upper() or 
-                    'GIC' in transaction.item.upper()
-                )
-            )
-            
-            # Check if it's spending (outgoing but not investment or transfer)
-            is_spending = (
-                transaction.direction == 'OUT' and 
-                not ('INVESTMENTS' in transaction.item.upper() or 'QUESTRADE' in transaction.item.upper() or 'MUTUAL FUNDS' in transaction.item.upper() or 'GIC' in transaction.item.upper()) and
-                not is_transfer
-            )
-            
-            # Check if it's income (all IN direction transactions, excluding GIC)
-            is_income = (transaction.direction == 'IN' and not (
-                'GIC' in transaction.item.upper()
-            ))
-            
-            transaction_data = {
-                'id': transaction.id,
-                'item': transaction.item,
-                'amount': float(transaction.amount),
-                'date': transaction.transaction_date.strftime('%Y-%m-%d'),
-                'direction': transaction.direction
-            }
-            
-            if is_transfer:
-                transfers += transaction.amount
-                transfer_transactions.append(transaction_data)
-            elif is_investment:
-                investments += transaction.amount
-                investment_transactions.append(transaction_data)
-            elif is_spending:
-                spending += transaction.amount
-                spending_transactions.append(transaction_data)
-            elif is_income:
-                income += transaction.amount
-                income_transactions.append(transaction_data)
-        
+        account_transactions = transactions.filter(statement__account=account).select_related('statement')
+
+        # Use utility function to categorize transactions
+        categorized = aggregate_transactions_by_category(account_transactions)
+
         bank_by_account[account] = {
-            'income': income,
-            'spending': spending,
-            'investments': investments,
-            'transfers': transfers,
-            'net_amount': income - spending - transfers,
+            'income': categorized['income'],
+            'spending': categorized['spending'],
+            'investments': categorized['investments'],
+            'transfers': categorized['transfers'],
+            'net_amount': categorized['net_amount'],
             'transaction_count': account_transactions.count(),
             'transactions': account_transactions[:10],  # Last 10 transactions
-            'income_transactions': income_transactions,
-            'spending_transactions': spending_transactions,
-            'investment_transactions': investment_transactions,
-            'transfer_transactions': transfer_transactions
+            'income_transactions': categorized['income_transactions'],
+            'spending_transactions': categorized['spending_transactions'],
+            'investment_transactions': categorized['investment_transactions'],
+            'transfer_transactions': categorized['transfer_transactions']
         }
-        
+
         # Add to total bank amounts (subtract transfers from income since they're not real income)
-        total_bank_income += income - transfers
-        total_bank_spending += spending
+        total_bank_income += categorized['income'] - categorized['transfers']
+        total_bank_spending += categorized['spending']
     
     # CREDIT CARD account dashboard
     credit_accounts = Account.objects.filter(account_type='CREDIT_CARD')

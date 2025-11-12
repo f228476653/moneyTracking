@@ -1,39 +1,57 @@
-name: Deploy to Google Cloud
+name: Deploy to Cloud Run
 
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  PROJECT_ID: moneytracking-472503
   SERVICE_NAME: money-tracking
   REGION: us-central1
+  SQL_INSTANCE: money-tracking-db
 
 jobs:
   test:
+    name: Run Tests
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
-    
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    
-    - name: Run tests (if any)
+
+    - name: Run Django checks
+      env:
+        SECRET_KEY: test-secret-key-for-ci
+        DEBUG: False
       run: |
-        # Add your test commands here
-        echo "Running tests..."
-        # python manage.py test
-    
+        python manage.py check
+        python manage.py check --deploy
+
+    - name: Run unit tests
+      env:
+        SECRET_KEY: test-secret-key-for-ci
+        DEBUG: False
+      run: |
+        python manage.py test statements.tests --verbosity=2
+
     - name: Lint with flake8
       run: |
         pip install flake8
@@ -43,57 +61,74 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
   deploy:
+    name: Deploy to Cloud Run
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Google Auth
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Google Cloud Auth
       id: auth
       uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
-    
+
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
-    
-    - name: Configure Docker
-      run: gcloud auth configure-docker
-    
-    - name: Build and Push Container
+      with:
+        project_id: ${{ env.PROJECT_ID }}
+
+    - name: Deploy using Cloud Build
       run: |
-        docker build -f deployment/Dockerfile -t gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA .
-        docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA
-    
-    - name: Deploy to Cloud Run
+        gcloud builds submit --config cloudbuild-simple.yaml
+
+    - name: Run Database Migrations
       run: |
-        gcloud run deploy $SERVICE_NAME \
-          --image gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA \
-          --region $REGION \
-          --platform managed \
-          --allow-unauthenticated \
-          --set-env-vars="DJANGO_SETTINGS_MODULE=bank_parser.settings,DEBUG=False,DB_ENGINE=django.db.backends.postgresql,DB_NAME=money_tracking,DB_USER=postgres,DB_PASSWORD=${{ secrets.DB_PASSWORD }},DB_HOST=/cloudsql/$PROJECT_ID:$REGION:money-tracking-db,DB_PORT=5432" \
-          --add-cloudsql-instances=$PROJECT_ID:$REGION:money-tracking-db
-    
-    - name: Run Migrations
-      run: |
-        gcloud run jobs create migrate-db \
-          --image gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA \
-          --region $REGION \
-          --set-env-vars="DJANGO_SETTINGS_MODULE=bank_parser.settings,DEBUG=False,DB_ENGINE=django.db.backends.postgresql,DB_NAME=money_tracking,DB_USER=postgres,DB_PASSWORD=${{ secrets.DB_PASSWORD }},DB_HOST=/cloudsql/$PROJECT_ID:$REGION:money-tracking-db,DB_PORT=5432" \
-          --add-cloudsql-instances=$PROJECT_ID:$REGION:money-tracking-db \
+        MIGRATION_JOB="migrate-db-${{ github.sha }}"
+
+        # Create migration job
+        gcloud run jobs create $MIGRATION_JOB \
+          --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest \
+          --region ${{ env.REGION }} \
+          --set-env-vars="SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }},DJANGO_SETTINGS_MODULE=bank_parser.settings,DEBUG=False,DB_ENGINE=django.db.backends.postgresql,DB_NAME=money_tracking,DB_USER=postgres,DB_PASSWORD=${{ secrets.DB_PASSWORD }},DB_HOST=/cloudsql/${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.SQL_INSTANCE }},DB_PORT=5432" \
+          --add-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.SQL_INSTANCE }} \
           --command="python" \
           --args="manage.py,migrate" \
-          --max-retries=3 \
+          --max-retries=2 \
           --parallelism=1 \
-          --task-count=1
-        
-        gcloud run jobs execute migrate-db --region $REGION --wait
-    
-    - name: Show Service URL
+          --task-timeout=300s \
+          --quiet || echo "Job already exists"
+
+        # Execute migration
+        gcloud run jobs execute $MIGRATION_JOB \
+          --region ${{ env.REGION }} \
+          --wait
+
+        # Clean up
+        gcloud run jobs delete $MIGRATION_JOB \
+          --region ${{ env.REGION }} \
+          --quiet || true
+
+    - name: Get Service URL
+      id: service
       run: |
-        SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format='value(status.url)')
-        echo "Service deployed at: $SERVICE_URL"
-        echo "::notice title=Deployment Complete::Your app is available at $SERVICE_URL"
+        SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+          --region=${{ env.REGION }} \
+          --format='value(status.url)')
+        echo "url=$SERVICE_URL" >> $GITHUB_OUTPUT
+
+    - name: Deployment Summary
+      run: |
+        echo "🚀 Deployment Complete!"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "Service: ${{ env.SERVICE_NAME }}"
+        echo "Region: ${{ env.REGION }}"
+        echo "URL: ${{ steps.service.outputs.url }}"
+        echo "Commit: ${{ github.sha }}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    - name: Create deployment annotation
+      run: |
+        echo "::notice title=Deployment Complete::Your app is live at ${{ steps.service.outputs.url }}"

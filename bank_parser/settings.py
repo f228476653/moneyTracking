@@ -14,10 +14,10 @@ env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-this-in-production')
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool('DEBUG', default=True)
+DEBUG = env.bool('DEBUG', default=False)
 
 # Get ALLOWED_HOSTS from environment or use defaults
 default_hosts = ['localhost', '127.0.0.1', '0.0.0.0', 'web', 'money-tracking-571621744981.us-central1.run.app']
@@ -106,15 +106,11 @@ else:
         }
     }
     
-    # Add connection debugging in development
+    # Add connection debugging in development (removed password logging for security)
     if DEBUG:
-        print(f"Database configuration:")
-        print(f"  ENGINE: {env('DB_ENGINE')}")
-        print(f"  NAME: {env('DB_NAME')}")
-        print(f"  USER: {env('DB_USER')}")
-        print(f"  HOST: {env('DB_HOST')}")
-        print(f"  PORT: {env('DB_PORT')}")
-        print(f"  PASSWORD: {'*' * len(env('DB_PASSWORD', default=''))}")
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Database configuration: ENGINE={env('DB_ENGINE')}, NAME={env('DB_NAME')}, HOST={env('DB_HOST')}")
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -198,6 +194,14 @@ FILE_UPLOAD_HANDLERS = [
     'django.core.files.uploadhandler.MemoryFileUploadHandler',
     'django.core.files.uploadhandler.TemporaryFileUploadHandler',
 ]
+
+# File upload security
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10 MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10 MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
+
+# Allowed file extensions for uploads
+ALLOWED_UPLOAD_EXTENSIONS = ['.csv', '.xlsx', '.xls', '.pdf', '.txt']
 
 # Logging
 LOGGING = {

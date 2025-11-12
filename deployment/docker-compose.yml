@@ -31,7 +31,7 @@ services:
       - DB_HOST=db
       - DB_NAME=bank_parser
       - DB_USER=postgres
-      - DB_PASSWORD=postgres
+      - DB_PASSWORD=postgres123
       - DB_PORT=5432
     depends_on:
       db:

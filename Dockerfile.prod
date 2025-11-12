@@ -31,8 +31,12 @@ RUN adduser --disabled-password --gecos '' appuser
 RUN chown -R appuser:appuser /app
 USER appuser
 
-# Collect static files
+# Collect static files (using build-time SECRET_KEY)
+# Note: This is only for collectstatic during build. Real SECRET_KEY is provided at runtime.
+ARG SECRET_KEY=build-time-secret-key-only-for-collectstatic
+ENV SECRET_KEY=${SECRET_KEY}
 RUN python manage.py collectstatic --noinput
+ENV SECRET_KEY=
 
 # Expose port
 EXPOSE 8080

@@ -1,11 +1,17 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 import json
+import logging
 
 from ..models import Account, InvestmentData
 from ..factory import StatementParserFactory
 from ..forms import StatementUploadForm
+from ..validators import validate_file_extension, validate_file_size
+from ..exceptions import StatementParsingError
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -39,8 +45,18 @@ def upload_statement(request):
                 else:
                     # Handle regular bank statement upload
                     uploaded_file = request.FILES['source_file']
+
+                    # Validate file
+                    try:
+                        validate_file_extension(uploaded_file)
+                        validate_file_size(uploaded_file)
+                    except ValidationError as e:
+                        messages.error(request, str(e))
+                        return redirect('upload_statement')
+
+                    # Read file content
                     file_content = uploaded_file.read()
-                    
+
                     # Parse the statement
                     parser_factory = StatementParserFactory()
                     statement_meta, transactions = parser_factory.parse_statement(
@@ -73,9 +89,16 @@ def upload_statement(request):
                     )
                 
                 return redirect('statement_detail', statement_id=statement.id)
-                
+
+            except StatementParsingError as e:
+                logger.error(f"Statement parsing error: {e}", exc_info=True)
+                messages.error(request, f'Error parsing statement: {str(e)}')
+            except ValidationError as e:
+                logger.warning(f"Validation error: {e}")
+                messages.error(request, str(e))
             except Exception as e:
-                messages.error(request, f'Error processing statement: {str(e)}')
+                logger.error(f"Unexpected error processing statement: {e}", exc_info=True)
+                messages.error(request, f'Unexpected error processing statement. Please try again or contact support.')
     else:
         form = StatementUploadForm()
     
