@@ -217,30 +217,46 @@ def investment_detail(request):
         ).select_related('account').order_by('date_updated')
         
         if all_total_values.exists():
-            date_totals = {}
+            # First, collect the latest value for each account on each date
+            account_date_values = {}
             
             for value in all_total_values:
                 date_str = value.date_updated.strftime('%Y-%m-%d')
+                account_id = value.account.id
+                account_date_key = f"{account_id}_{date_str}"
+                
+                # Keep only the latest value for each account on each date
+                if account_date_key not in account_date_values or value.date_updated > account_date_values[account_date_key]['datetime']:
+                    account_date_values[account_date_key] = {
+                        'date_str': date_str,
+                        'datetime': value.date_updated,
+                        'account_type': value.account.account_type,
+                        'current_value': value.current_value or Decimal('0.00')
+                    }
+            
+            # Now aggregate by date
+            date_totals = {}
+            
+            for account_date_key, value_data in account_date_values.items():
+                date_str = value_data['date_str']
                 
                 if date_str not in date_totals:
                     date_totals[date_str] = {
-                        'datetime': value.date_updated,
+                        'datetime': value_data['datetime'],
                         'bank_total': Decimal('0.00'),
                         'investment_total': Decimal('0.00'),
                         'total_value': Decimal('0.00')
                     }
                 
-                account_key = f"{value.account.id}_{date_str}"
-                if not hasattr(date_totals[date_str], 'processed_accounts'):
-                    date_totals[date_str]['processed_accounts'] = set()
+                # Update datetime if this value is more recent
+                if value_data['datetime'] > date_totals[date_str]['datetime']:
+                    date_totals[date_str]['datetime'] = value_data['datetime']
                 
-                if account_key not in date_totals[date_str]['processed_accounts']:
-                    if value.account.account_type == 'BANK':
-                        date_totals[date_str]['bank_total'] += (value.current_value or Decimal('0.00'))
-                    elif value.account.account_type == 'INVESTMENT':
-                        date_totals[date_str]['investment_total'] += (value.current_value or Decimal('0.00'))
-                    
-                    date_totals[date_str]['processed_accounts'].add(account_key)
+                # Add to appropriate total
+                if value_data['account_type'] == 'BANK':
+                    date_totals[date_str]['bank_total'] += value_data['current_value']
+                elif value_data['account_type'] == 'INVESTMENT':
+                    date_totals[date_str]['investment_total'] += value_data['current_value']
             
             for date_str, data in date_totals.items():
                 data['total_value'] = data['bank_total'] + data['investment_total']

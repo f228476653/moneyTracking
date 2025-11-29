@@ -8,7 +8,6 @@ env:
   PROJECT_ID: moneytracking-472503
   SERVICE_NAME: money-tracking
   REGION: us-central1
-  SQL_INSTANCE: money-tracking-db
 
 jobs:
   test:
@@ -92,8 +91,7 @@ jobs:
         gcloud run jobs create $MIGRATION_JOB \
           --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest \
           --region ${{ env.REGION }} \
-          --set-env-vars="SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }},DJANGO_SETTINGS_MODULE=bank_parser.settings,DEBUG=False,DB_ENGINE=django.db.backends.postgresql,DB_NAME=money_tracking,DB_USER=postgres,DB_PASSWORD=${{ secrets.DB_PASSWORD }},DB_HOST=/cloudsql/${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.SQL_INSTANCE }},DB_PORT=5432" \
-          --add-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:${{ env.SQL_INSTANCE }} \
+          --set-env-vars="SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }},DATABASE_URL=${{ secrets.DATABASE_URL }},DJANGO_SETTINGS_MODULE=bank_parser.settings,DEBUG=False" \
           --command="python" \
           --args="manage.py,migrate" \
           --max-retries=2 \

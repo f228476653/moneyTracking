@@ -24,11 +24,9 @@ steps:
       - '--port'
       - '8080'
       - '--update-secrets'
-      - 'SECRET_KEY=django-secret-key:latest,DB_PASSWORD=db-password:latest'
+      - 'SECRET_KEY=django-secret-key:latest,DATABASE_URL=database-url:latest'
       - '--set-env-vars'
-      - 'DJANGO_SETTINGS_MODULE=bank_parser.settings,DEBUG=False,DB_ENGINE=django.db.backends.postgresql,DB_NAME=money_tracking,DB_USER=postgres,DB_HOST=/cloudsql/$PROJECT_ID:us-central1:money-tracking-db,DB_PORT=5432'
-      - '--add-cloudsql-instances'
-      - '$PROJECT_ID:us-central1:money-tracking-db'
+      - 'DJANGO_SETTINGS_MODULE=bank_parser.settings,DEBUG=False'
 
 images:
   - 'gcr.io/$PROJECT_ID/money-tracking:latest'

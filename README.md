@@ -179,16 +179,11 @@ Required environment variables (in `.env`):
 SECRET_KEY=your-secret-key-here
 DEBUG=False
 
-# Database (Production - Cloud SQL)
-DB_ENGINE=django.db.backends.postgresql
-DB_NAME=money_tracking
-DB_USER=postgres
-DB_PASSWORD=your-password
-DB_HOST=/cloudsql/PROJECT:REGION:INSTANCE
-DB_PORT=5432
+# Database (Production - Supabase)
+DATABASE_URL=postgresql://postgres:password@db.xxx.supabase.co:5432/postgres
 
-# Or SQLite (Development)
-DB_ENGINE=django.db.backends.sqlite3
+# Or leave empty for SQLite (Development)
+# DATABASE_URL will default to SQLite if not set
 ```
 
 See `.env.example` for full template.
@@ -242,7 +237,7 @@ See `.env.example` for full template.
 
 **Deployment:**
 - Google Cloud Run (serverless containers)
-- Cloud SQL (PostgreSQL)
+- Supabase (PostgreSQL database)
 - Cloud Build (CI/CD)
 - Docker
 
@@ -309,8 +304,8 @@ This project is private. All rights reserved.
 - Try generic CSV parser
 
 **Database Connection**
-- Verify Cloud SQL is running
-- Check connection string in `.env`
+- Verify your Supabase database is accessible
+- Check DATABASE_URL in `.env` or GitHub Secrets
 - Review Cloud Run logs
 
 **Deployment Fails**

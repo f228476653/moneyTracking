@@ -20,7 +20,6 @@ This guide will help you set up automated deployment to Google Cloud using GitHu
 6. Add the following roles:
    - **Cloud Run Admin**
    - **Cloud Build Editor**
-   - **Cloud SQL Client**
    - **Storage Admin**
    - **Service Account User**
 7. Click **Done**
@@ -43,38 +42,27 @@ This guide will help you set up automated deployment to Google Cloud using GitHu
 
 | Secret Name | Description | Example Value |
 |-------------|-------------|---------------|
-| `GCP_PROJECT_ID` | Your Google Cloud Project ID | `my-project-123456` |
 | `GCP_SA_KEY` | The entire JSON content of the service account key | `{"type": "service_account", "project_id": "..."}` |
-| `DB_PASSWORD` | Your Cloud SQL database password | `your-secure-password` |
+| `DJANGO_SECRET_KEY` | Django secret key for production | `your-django-secret-key` |
+| `DATABASE_URL` | Supabase PostgreSQL connection URL | `postgresql://user:pass@db.project.supabase.co:5432/postgres` |
 
-## Step 4: Set Up Cloud SQL Database
+## Step 4: Set Up Supabase Database
 
-If you haven't already, create your Cloud SQL instance:
+1. Go to [Supabase](https://supabase.com/) and create an account
+2. Create a new project
+3. Go to **Settings** > **Database**
+4. Copy the **Connection string** (it looks like `postgresql://postgres:[YOUR-PASSWORD]@db.xxx.supabase.co:5432/postgres`)
+5. Use this as your `DATABASE_URL` secret in GitHub
 
-```bash
-# Create Cloud SQL instance
-gcloud sql instances create money-tracking-db \
-    --database-version=POSTGRES_13 \
-    --tier=db-f1-micro \
-    --region=us-central1 \
-    --root-password=YOUR_SECURE_ROOT_PASSWORD
-
-# Create database
-gcloud sql databases create money_tracking --instance=money-tracking-db
-
-# Create user
-gcloud sql users create postgres \
-    --instance=money-tracking-db \
-    --password=YOUR_SECURE_PASSWORD
-```
+Note: The database will be automatically created by Supabase. No manual setup required!
 
 ## Step 5: Enable Required APIs
 
 ```bash
 gcloud services enable cloudbuild.googleapis.com
 gcloud services enable run.googleapis.com
-gcloud services enable sqladmin.googleapis.com
 gcloud services enable container.googleapis.com
+gcloud services enable secretmanager.googleapis.com
 ```
 
 ## Step 6: Test the Pipeline
@@ -94,9 +82,9 @@ gcloud services enable container.googleapis.com
 ### Common Issues:
 
 1. **Permission Denied**: Check that the service account has all required roles
-2. **Database Connection Failed**: Verify Cloud SQL instance is running and accessible
+2. **Database Connection Failed**: Verify your DATABASE_URL secret is correct and Supabase database is accessible
 3. **Build Failed**: Check that all dependencies are in `requirements.txt`
-4. **Migration Failed**: Ensure database user has proper permissions
+4. **Migration Failed**: Ensure DATABASE_URL is properly configured in GitHub Secrets
 
 ### Debug Steps:
 
@@ -116,10 +104,10 @@ gcloud services enable container.googleapis.com
 
 ## Cost Optimization
 
-- The `db-f1-micro` instance is suitable for development
-- Consider upgrading for production workloads
-- Monitor usage in Google Cloud Console
-- Set up billing alerts
+- Supabase offers a generous free tier for development
+- Consider upgrading to a paid plan for production workloads
+- Monitor Cloud Run usage in Google Cloud Console
+- Set up billing alerts for Cloud Run and Cloud Build
 
 ## Next Steps
 

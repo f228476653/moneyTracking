@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator
+from django.utils import timezone
 from decimal import Decimal
 from .account import Account
 
@@ -25,6 +26,7 @@ class AccountValue(models.Model):
         blank=True,
         help_text='Booking value for investment accounts (original cost basis)'
     )
+    date = models.DateField(help_text='Date for this account value (prevents duplicates per day)')
     date_updated = models.DateTimeField(auto_now=True, help_text='When this value was last updated')
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -32,7 +34,16 @@ class AccountValue(models.Model):
         ordering = ['-date_updated']
         verbose_name = 'Account Value'
         verbose_name_plural = 'Account Values'
-        unique_together = ['account', 'date_updated']  # One value per account per day
+        unique_together = [['account', 'date']]  # One value per account per day
+    
+    def save(self, *args, **kwargs):
+        # Automatically set date from date_updated if not provided
+        if not self.date:
+            if self.date_updated:
+                self.date = self.date_updated.date()
+            else:
+                self.date = timezone.now().date()
+        super().save(*args, **kwargs)
     
     def __str__(self):
-        return f"{self.account.bank_name} - {self.account.account_abbr}: ${self.current_value} ({self.date_updated.date()})"
+        return f"{self.account.bank_name} - {self.account.account_abbr}: ${self.current_value} ({self.date})"

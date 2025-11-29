@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.utils import timezone
+from django.db import IntegrityError
 from decimal import Decimal
 
 from ..models import Account, AccountValue
@@ -19,24 +21,68 @@ def account_values(request):
         if form.is_valid():
             account_values, booking_values = form.get_account_values()
             
-            # Create AccountValue records for each account
+            # Create or update AccountValue records for each account
             created_count = 0
+            updated_count = 0
+            error_count = 0
+            today = timezone.now().date()
+            
             for account_id, value in account_values.items():
                 if value is not None:
                     account = Account.objects.get(id=account_id)
                     booking_value = booking_values.get(account_id)
                     
-                    AccountValue.objects.create(
+                    # Check if an entry already exists for this account and date
+                    existing_value = AccountValue.objects.filter(
                         account=account,
-                        current_value=value,
-                        booking_value=booking_value
-                    )
-                    created_count += 1
+                        date=today
+                    ).first()
+                    
+                    if existing_value:
+                        # Update existing entry
+                        existing_value.current_value = value
+                        if booking_value is not None:
+                            existing_value.booking_value = booking_value
+                        try:
+                            existing_value.save()
+                            updated_count += 1
+                        except IntegrityError:
+                            error_count += 1
+                            messages.error(
+                                request,
+                                f'❌ Error updating {account.account_abbr}: A duplicate entry already exists for today.'
+                            )
+                    else:
+                        # Create new entry
+                        try:
+                            AccountValue.objects.create(
+                                account=account,
+                                current_value=value,
+                                booking_value=booking_value,
+                                date=today
+                            )
+                            created_count += 1
+                        except IntegrityError:
+                            error_count += 1
+                            messages.error(
+                                request,
+                                f'❌ Error creating entry for {account.account_abbr}: A duplicate entry already exists for today.'
+                            )
             
-            if created_count > 0:
+            if created_count > 0 or updated_count > 0:
+                success_msg = []
+                if created_count > 0:
+                    success_msg.append(f'Created {created_count} new value(s)')
+                if updated_count > 0:
+                    success_msg.append(f'Updated {updated_count} existing value(s)')
                 messages.success(
                     request, 
-                    f'✅ Successfully updated values for {created_count} account(s)!'
+                    f'✅ Successfully processed values for {created_count + updated_count} account(s)! ({", ".join(success_msg)})'
+                )
+            elif error_count > 0:
+                messages.warning(
+                    request,
+                    f'⚠️ {error_count} account(s) could not be processed due to duplicate entries.'
                 )
             else:
                 messages.info(
@@ -56,7 +102,7 @@ def account_values(request):
             current_values[account.id] = {
                 'value': latest_value.current_value,
                 'booking_value': latest_value.booking_value,
-                'date': latest_value.date_updated.date()
+                'date': latest_value.date
             }
     
     # Calculate totals

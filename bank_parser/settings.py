@@ -5,6 +5,7 @@ Django settings for bank_parser project.
 import os
 from pathlib import Path
 import environ
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -83,34 +84,32 @@ TEMPLATES = [
 WSGI_APPLICATION = 'bank_parser.wsgi.application'
 
 # Database
-if env('DB_ENGINE', default='django.db.backends.sqlite3') == 'django.db.backends.sqlite3':
+# Use DATABASE_URL if provided (for Supabase or other hosted PostgreSQL)
+# Otherwise fall back to SQLite for local development
+DATABASE_URL = env('DATABASE_URL', default=None)
+
+if DATABASE_URL:
+    # Parse DATABASE_URL for production (Supabase, etc.)
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=True)
+    }
+else:
+    # Use SQLite for local development
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
-else:
-    # PostgreSQL configuration for production
-    DATABASES = {
-        'default': {
-            'ENGINE': env('DB_ENGINE'),
-            'NAME': env('DB_NAME'),
-            'USER': env('DB_USER'),
-            'PASSWORD': env('DB_PASSWORD'),
-            'HOST': env('DB_HOST'),
-            'PORT': env('DB_PORT'),
-            'OPTIONS': {
-                'sslmode': 'require',
-            },
-        }
-    }
-    
-    # Add connection debugging in development (removed password logging for security)
-    if DEBUG:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"Database configuration: ENGINE={env('DB_ENGINE')}, NAME={env('DB_NAME')}, HOST={env('DB_HOST')}")
+
+# Add connection debugging in development (removed password logging for security)
+if DEBUG and DATABASE_URL:
+    import logging
+    logger = logging.getLogger(__name__)
+    # Parse the URL to extract host for logging (without password)
+    from urllib.parse import urlparse
+    parsed = urlparse(DATABASE_URL)
+    logger.info(f"Database configuration: HOST={parsed.hostname}, NAME={parsed.path.lstrip('/')}")
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
