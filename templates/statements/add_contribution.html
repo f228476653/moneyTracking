@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Contribution - Contribution Tracker{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h2">
+            <i class="bi bi-plus-circle text-primary"></i> Add Contribution
+        </h1>
+        <p class="text-muted">Log a new contribution to TFSA or RRSP</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Contribution Details</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.user.id_for_label }}" class="form-label">User</label>
+                        {{ form.user }}
+                        {% if form.user.errors %}
+                        <div class="text-danger">{{ form.user.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Account Type</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="account_type" id="tfsa" value="TFSA" checked>
+                            <label class="btn btn-outline-success" for="tfsa">TFSA</label>
+                            
+                            <input type="radio" class="btn-check" name="account_type" id="rrsp" value="RRSP">
+                            <label class="btn btn-outline-primary" for="rrsp">RRSP</label>
+                        </div>
+                        {% if form.account_type.errors %}
+                        <div class="text-danger">{{ form.account_type.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.date.id_for_label }}" class="form-label">Date</label>
+                        {{ form.date }}
+                        {% if form.date.errors %}
+                        <div class="text-danger">{{ form.date.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.amount.id_for_label }}" class="form-label">Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            {{ form.amount }}
+                        </div>
+                        {% if form.amount.errors %}
+                        <div class="text-danger">{{ form.amount.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Add Contribution
+                        </button>
+                        <a href="{% url 'statements:contribution_tracker' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

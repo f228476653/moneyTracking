@@ -1,0 +1,512 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load statements_extras %}
+
+{% block title %}Contribution Tracker - Bank Statement Parser{% endblock %}
+
+{% block extra_css %}
+<style>
+    .progress-bar-custom {
+        height: 12px;
+        border-radius: 6px;
+        transition: width 0.5s ease;
+    }
+    .member-card {
+        border-left: 4px solid #0d6efd;
+    }
+    .tfsa-badge {
+        background-color: #10b981;
+        color: white;
+    }
+    .rrsp-badge {
+        background-color: #3b82f6;
+        color: white;
+    }
+    .over-limit {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    .contribution-table {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h2">
+                <i class="bi bi-graph-up-arrow text-primary"></i> Contribution Tracker
+            </h1>
+            <p class="text-muted">Manage your CRA registered account limits</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column: User Cards -->
+    <div class="col-lg-8 mb-4">
+        {% if users %}
+            {% for user in users %}
+            <div class="card member-card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px; font-weight: bold; font-size: 1.2rem;">
+                                {{ user.username|first|upper }}
+                            </div>
+                            <div>
+                                <h5 class="mb-0">{{ user.get_full_name|default:user.username }}</h5>
+                                <small class="text-muted">{{ current_year }} Contribution Room</small>
+                            </div>
+                        </div>
+                        <a href="{% url 'statements:edit_user_rooms' user.id %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-gear"></i>
+                        </a>
+                    </div>
+                    
+                    {% with stats=user_stats|lookup:user.id %}
+                    <!-- TFSA Progress -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-end mb-2">
+                            <span class="fw-medium text-muted">TFSA</span>
+                            <span class="{% if stats.tfsa_used > stats.tfsa_limit %}over-limit{% else %}text-muted{% endif %} fw-bold">
+                                {% if stats.tfsa_used > stats.tfsa_limit %}
+                                    OVER LIMIT
+                                {% else %}
+                                    ${{ stats.tfsa_remaining|floatformat:2 }} left
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="progress" style="height: 12px;">
+                            {% if stats.tfsa_limit > 0 %}
+                                {% widthratio stats.tfsa_used stats.tfsa_limit 100 as tfsa_percent %}
+                            {% else %}
+                                {% with tfsa_percent=0 %}{% endwith %}
+                            {% endif %}
+                            <div class="progress-bar {% if stats.tfsa_used > stats.tfsa_limit %}bg-danger{% else %}bg-success{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {% if stats.tfsa_limit > 0 %}{% widthratio stats.tfsa_used stats.tfsa_limit 100 %}{% else %}0{% endif %}%; max-width: 100%;"
+                                 aria-valuenow="{{ stats.tfsa_used }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="{{ stats.tfsa_limit }}">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-1">
+                            <small class="text-muted">Used: ${{ stats.tfsa_used|floatformat:2 }}</small>
+                            <small class="text-muted">Limit: ${{ stats.tfsa_limit|floatformat:2 }}</small>
+                        </div>
+                    </div>
+                    
+                    <!-- RRSP Progress -->
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-end mb-2">
+                            <span class="fw-medium text-muted">RRSP</span>
+                            <span class="{% if stats.rrsp_used > stats.rrsp_limit %}over-limit{% else %}text-muted{% endif %} fw-bold">
+                                {% if stats.rrsp_used > stats.rrsp_limit %}
+                                    OVER LIMIT
+                                {% else %}
+                                    ${{ stats.rrsp_remaining|floatformat:2 }} left
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="progress" style="height: 12px;">
+                            <div class="progress-bar {% if stats.rrsp_used > stats.rrsp_limit %}bg-danger{% else %}bg-primary{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {% if stats.rrsp_limit > 0 %}{% widthratio stats.rrsp_used stats.rrsp_limit 100 %}{% else %}0{% endif %}%; max-width: 100%;"
+                                 aria-valuenow="{{ stats.rrsp_used }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="{{ stats.rrsp_limit }}">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-1">
+                            <small class="text-muted">Used: ${{ stats.rrsp_used|floatformat:2 }}</small>
+                            <small class="text-muted">Limit: ${{ stats.rrsp_limit|floatformat:2 }}</small>
+                        </div>
+                    </div>
+                    {% endwith %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="card">
+                <div class="card-body text-center text-muted py-5">
+                    <i class="bi bi-person-x fs-1 d-block mb-3"></i>
+                    <p>No users found. Users must be created through the admin panel or signup.</p>
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Room History (Desktop) -->
+        <div class="card d-none d-lg-block mt-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="bi bi-calendar-range"></i> Room History (Past Years)
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="contribution-table">
+                    {% if users %}
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>User</th>
+                                <th>Year</th>
+                                <th class="text-end">TFSA Room</th>
+                                <th class="text-end">RRSP Room</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if has_room_history %}
+                                {% for user in users %}
+                                    {% with history=room_history|lookup:user.id %}
+                                        {% if history %}
+                                            {% for entry in history %}
+                                            <tr>
+                                                <td class="fw-medium">{{ user.get_full_name|default:user.username }}</td>
+                                                <td>{{ entry.year }}</td>
+                                                <td class="text-end font-monospace">
+                                                    {% if entry.tfsa_limit %}
+                                                        ${{ entry.tfsa_limit|floatformat:2 }}
+                                                    {% else %}
+                                                        <span class="text-muted">—</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-end font-monospace">
+                                                    {% if entry.rrsp_limit %}
+                                                        ${{ entry.rrsp_limit|floatformat:2 }}
+                                                    {% else %}
+                                                        <span class="text-muted">—</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    No room history available for past years.
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Contribution History (Desktop) -->
+        <div class="card d-none d-lg-block mt-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i> Recent History
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="contribution-table">
+                    {% if contributions %}
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Date</th>
+                                <th>User</th>
+                                <th>Account</th>
+                                <th class="text-end">Amount</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contribution in contributions|slice:":20" %}
+                            <tr>
+                                <td>
+                                    {{ contribution.date }}
+                                    {% if contribution.tax_year == 'previous' %}
+                                    <span class="badge bg-purple text-white ms-2" style="font-size: 0.7rem;">PREV YR</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-medium">{{ contribution.user.get_full_name|default:contribution.user.username }}</td>
+                                <td>
+                                    <span class="badge {% if contribution.account_type == 'TFSA' %}tfsa-badge{% else %}rrsp-badge{% endif %}">
+                                        {{ contribution.account_type }}
+                                    </span>
+                                </td>
+                                <td class="text-end font-monospace">${{ contribution.amount|floatformat:2 }}</td>
+                                <td class="text-center">
+                                    <form method="post" action="{% url 'statements:delete_contribution' contribution.id %}" style="display: inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-link text-danger" onclick="return confirm('Delete this contribution?');">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center text-muted py-5">
+                        <p>No contributions logged yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column: Add Form -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-plus-circle text-primary"></i> Log Contribution
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'statements:add_contribution' %}" id="contributionForm">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label small text-uppercase fw-bold text-muted">User</label>
+                        <select name="user" class="form-select" required>
+                            <option value="">Select user...</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.get_full_name|default:user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small text-uppercase fw-bold text-muted">Account</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="account_type" id="tfsa" value="TFSA" checked>
+                            <label class="btn btn-outline-success" for="tfsa">TFSA</label>
+                            
+                            <input type="radio" class="btn-check" name="account_type" id="rrsp" value="RRSP">
+                            <label class="btn btn-outline-primary" for="rrsp">RRSP</label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small text-uppercase fw-bold text-muted">Date</label>
+                        <input type="date" name="date" class="form-control" required value="{{ today|date:'Y-m-d' }}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small text-uppercase fw-bold text-muted">Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" name="amount" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+                        </div>
+                    </div>
+                    
+                    <!-- First 60 Days Logic (RRSP Only) -->
+                    <div id="first60Days" class="alert alert-warning d-none">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <div class="flex-grow-1">
+                                <p class="fw-bold mb-2">First 60 Days Detected</p>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="tax_year" id="current" value="current" checked>
+                                    <label class="form-check-label" for="current">
+                                        Count for {{ current_year }}
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="tax_year" id="previous" value="previous">
+                                    <label class="form-check-label" for="previous">
+                                        Count for {{ previous_year }}
+                                    </label>
+                                </div>
+                                <small class="text-muted d-block mt-2">
+                                    * Previous year contributions will NOT deduct from current year's displayed room.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <input type="hidden" name="tax_year" id="taxYearInput" value="current">
+                    
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-plus-circle"></i> Add Contribution
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Mobile Contribution History -->
+        <div class="card d-lg-none mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i> Recent History
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="contribution-table">
+                    {% if contributions %}
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Date</th>
+                                <th>User</th>
+                                <th>Account</th>
+                                <th class="text-end">Amount</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contribution in contributions|slice:":10" %}
+                            <tr>
+                                <td>
+                                    {{ contribution.date }}
+                                    {% if contribution.tax_year == 'previous' %}
+                                    <span class="badge bg-purple text-white ms-2" style="font-size: 0.7rem;">PREV YR</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-medium">{{ contribution.user.get_full_name|default:contribution.user.username }}</td>
+                                <td>
+                                    <span class="badge {% if contribution.account_type == 'TFSA' %}tfsa-badge{% else %}rrsp-badge{% endif %}">
+                                        {{ contribution.account_type }}
+                                    </span>
+                                </td>
+                                <td class="text-end font-monospace">${{ contribution.amount|floatformat:2 }}</td>
+                                <td class="text-center">
+                                    <form method="post" action="{% url 'statements:delete_contribution' contribution.id %}" style="display: inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-link text-danger" onclick="return confirm('Delete this contribution?');">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center text-muted py-5">
+                        <p>No contributions logged yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Room History (Mobile) -->
+        <div class="card d-lg-none mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="bi bi-calendar-range"></i> Room History (Past Years)
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="contribution-table">
+                    {% if users %}
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>User</th>
+                                <th>Year</th>
+                                <th class="text-end">TFSA</th>
+                                <th class="text-end">RRSP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if has_room_history %}
+                                {% for user in users %}
+                                    {% with history=room_history|lookup:user.id %}
+                                        {% if history %}
+                                            {% for entry in history %}
+                                            <tr>
+                                                <td class="fw-medium small">{{ user.get_full_name|default:user.username }}</td>
+                                                <td class="small">{{ entry.year }}</td>
+                                                <td class="text-end font-monospace small">
+                                                    {% if entry.tfsa_limit %}
+                                                        ${{ entry.tfsa_limit|floatformat:2 }}
+                                                    {% else %}
+                                                        <span class="text-muted">—</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-end font-monospace small">
+                                                    {% if entry.rrsp_limit %}
+                                                        ${{ entry.rrsp_limit|floatformat:2 }}
+                                                    {% else %}
+                                                        <span class="text-muted">—</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4 small">
+                                    No room history available for past years.
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('contributionForm');
+        const dateInput = form.querySelector('input[name="date"]');
+        const accountTypeRadios = form.querySelectorAll('input[name="account_type"]');
+        const first60DaysDiv = document.getElementById('first60Days');
+        const taxYearInput = document.getElementById('taxYearInput');
+        const taxYearRadios = form.querySelectorAll('input[name="tax_year"]');
+        
+        // Check if date is in first 60 days (Jan or Feb)
+        function checkFirst60Days() {
+            const date = new Date(dateInput.value);
+            const month = date.getMonth(); // 0 = Jan, 1 = Feb
+            const isRRSP = Array.from(accountTypeRadios).find(r => r.checked)?.value === 'RRSP';
+            
+            if (isRRSP && (month === 0 || month === 1)) {
+                first60DaysDiv.classList.remove('d-none');
+            } else {
+                first60DaysDiv.classList.add('d-none');
+                taxYearInput.value = 'current';
+            }
+        }
+        
+        // Update tax year input when radio changes
+        taxYearRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                taxYearInput.value = this.value;
+            });
+        });
+        
+        dateInput.addEventListener('change', checkFirst60Days);
+        accountTypeRadios.forEach(radio => {
+            radio.addEventListener('change', checkFirst60Days);
+        });
+        
+        // Set default date to today
+        if (!dateInput.value) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = today;
+        }
+        
+        // Set default user if only one exists
+        const userSelect = form.querySelector('select[name="user"]');
+        if (userSelect && userSelect.options.length === 2) { // 1 option + 1 placeholder
+            userSelect.selectedIndex = 1;
+        }
+    });
+</script>
+{% endblock %}
+

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Statement, StatementDetail, Account
+from .models import Statement, StatementDetail, Account, ContributionRoom, Contribution
 
 
 class StatementDetailInline(admin.TabularInline):
@@ -52,3 +52,20 @@ class StatementDetailAdmin(admin.ModelAdmin):
     search_fields = ['item', 'statement__account__bank_name', 'statement__account__account_abbr']
     readonly_fields = ['id']
     date_hierarchy = 'transaction_date'
+
+
+@admin.register(ContributionRoom)
+class ContributionRoomAdmin(admin.ModelAdmin):
+    list_display = ['user', 'account_type', 'limit', 'tax_year', 'created_at']
+    list_filter = ['account_type', 'tax_year', 'created_at']
+    search_fields = ['user__username', 'user__email']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(Contribution)
+class ContributionAdmin(admin.ModelAdmin):
+    list_display = ['user', 'account_type', 'amount', 'date', 'tax_year', 'created_at']
+    list_filter = ['account_type', 'tax_year', 'date', 'created_at']
+    search_fields = ['user__username', 'user__email']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    date_hierarchy = 'date'

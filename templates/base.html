@@ -93,6 +93,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="{% url 'statements:contribution_tracker' %}">
+                            <i class="bi bi-graph-up-arrow"></i> Contributions
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="{% url 'statements:statement_list' %}">
                             <i class="bi bi-list-ul"></i> Statements
                         </a>
@@ -161,13 +166,7 @@
     <footer class="footer">
         <div class="container">
             <div class="row">
-                <div class="col-md-6">
-                    <h5>Bank Statement Parser</h5>
-                    <p class="text-muted">
-                        A powerful tool for parsing and analyzing bank statements from multiple formats.
-                    </p>
-                </div>
-                <div class="col-md-6 text-md-end">
+                <div class="col-12 text-center">
                     <p class="text-muted">
                         &copy; {% now "Y" %} Bank Statement Parser. All rights reserved.
                     </p>

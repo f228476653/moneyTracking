@@ -8,6 +8,12 @@ from .investment_detail_view import investment_detail
 from .account_values_view import account_values
 from .api_transactions_view import api_transactions
 from .add_account_view import add_account
+from .contribution_tracker_view import (
+    contribution_tracker,
+    edit_user_rooms,
+    add_contribution,
+    delete_contribution,
+)
 
 __all__ = [
     'index',
@@ -19,4 +25,8 @@ __all__ = [
     'account_values',
     'api_transactions',
     'add_account',
+    'contribution_tracker',
+    'edit_user_rooms',
+    'add_contribution',
+    'delete_contribution',
 ]

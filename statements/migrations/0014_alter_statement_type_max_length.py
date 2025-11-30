@@ -1,6 +1,6 @@
 # Generated manually to fix varchar(10) constraint error
 
-from django.db import migrations
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
@@ -10,8 +10,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            "ALTER TABLE statements_statement ALTER COLUMN statement_type TYPE varchar(20);",
-            reverse_sql="ALTER TABLE statements_statement ALTER COLUMN statement_type TYPE varchar(10);"
+        migrations.AlterField(
+            model_name='statement',
+            name='statement_type',
+            field=models.CharField(max_length=20),
         ),
     ]

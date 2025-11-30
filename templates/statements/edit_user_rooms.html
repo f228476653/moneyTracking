@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Contribution Rooms - Contribution Tracker{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h2">
+            <i class="bi bi-pencil text-primary"></i> Edit Contribution Rooms
+        </h1>
+        <p class="text-muted">Update contribution room limits for {{ user.get_full_name|default:user.username }}</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Contribution Rooms -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Contribution Rooms ({{ current_year }})</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">TFSA Room</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" 
+                                       name="tfsa_limit" 
+                                       class="form-control" 
+                                       step="0.01" 
+                                       min="0" 
+                                       value="{{ tfsa_limit|floatformat:2 }}"
+                                       required>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">RRSP Room</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" 
+                                       name="rrsp_limit" 
+                                       class="form-control" 
+                                       step="0.01" 
+                                       min="0" 
+                                       value="{{ rrsp_limit|floatformat:2 }}"
+                                       required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Note:</strong> These limits should match what CRA shows on your My Account or NOA as of Jan 1st.
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Update Rooms
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <a href="{% url 'statements:contribution_tracker' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Tracker
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

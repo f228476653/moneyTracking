@@ -217,53 +217,83 @@ def investment_detail(request):
         ).select_related('account').order_by('date_updated')
         
         if all_total_values.exists():
-            # First, collect the latest value for each account on each date
-            account_date_values = {}
+            # Get all distinct dates that have entries
+            all_dates = set()
+            all_accounts = set()
+            account_values_by_date = {}
             
+            # First pass: collect all dates and accounts, and group values by date
             for value in all_total_values:
                 date_str = value.date_updated.strftime('%Y-%m-%d')
                 account_id = value.account.id
-                account_date_key = f"{account_id}_{date_str}"
+                all_dates.add(date_str)
+                all_accounts.add(account_id)
                 
-                # Keep only the latest value for each account on each date
-                if account_date_key not in account_date_values or value.date_updated > account_date_values[account_date_key]['datetime']:
-                    account_date_values[account_date_key] = {
-                        'date_str': date_str,
-                        'datetime': value.date_updated,
-                        'account_type': value.account.account_type,
-                        'current_value': value.current_value or Decimal('0.00')
-                    }
+                if date_str not in account_values_by_date:
+                    account_values_by_date[date_str] = []
+                
+                account_values_by_date[date_str].append({
+                    'account_id': account_id,
+                    'account_type': value.account.account_type,
+                    'current_value': value.current_value or Decimal('0.00'),
+                    'datetime': value.date_updated
+                })
             
-            # Now aggregate by date
+            # For each date, keep only the latest value per account (remove duplicates on same date)
+            for date_str in account_values_by_date:
+                account_latest = {}
+                for value_data in account_values_by_date[date_str]:
+                    account_id = value_data['account_id']
+                    if account_id not in account_latest or value_data['datetime'] > account_latest[account_id]['datetime']:
+                        account_latest[account_id] = value_data
+                account_values_by_date[date_str] = list(account_latest.values())
+            
+            # Now create snapshots: for each date, include all accounts with their latest value up to that date
+            sorted_dates = sorted(all_dates)
             date_totals = {}
             
-            for account_date_key, value_data in account_date_values.items():
-                date_str = value_data['date_str']
+            for date_str in sorted_dates:
+                # For this date, get the latest value for each account up to this date
+                account_snapshot = {}
                 
-                if date_str not in date_totals:
-                    date_totals[date_str] = {
-                        'datetime': value_data['datetime'],
-                        'bank_total': Decimal('0.00'),
-                        'investment_total': Decimal('0.00'),
-                        'total_value': Decimal('0.00')
-                    }
+                # Check all dates up to and including this date
+                for check_date in sorted_dates:
+                    if check_date > date_str:
+                        break
+                    
+                    # Get values from this date
+                    if check_date in account_values_by_date:
+                        for value_data in account_values_by_date[check_date]:
+                            account_id = value_data['account_id']
+                            # Use this value if we don't have one yet, or if this one is more recent
+                            if account_id not in account_snapshot or value_data['datetime'] > account_snapshot[account_id]['datetime']:
+                                account_snapshot[account_id] = value_data
                 
-                # Update datetime if this value is more recent
-                if value_data['datetime'] > date_totals[date_str]['datetime']:
-                    date_totals[date_str]['datetime'] = value_data['datetime']
+                # Now aggregate totals for this date
+                date_totals[date_str] = {
+                    'datetime': None,
+                    'bank_total': Decimal('0.00'),
+                    'investment_total': Decimal('0.00'),
+                    'total_value': Decimal('0.00')
+                }
                 
-                # Add to appropriate total
-                if value_data['account_type'] == 'BANK':
-                    date_totals[date_str]['bank_total'] += value_data['current_value']
-                elif value_data['account_type'] == 'INVESTMENT':
-                    date_totals[date_str]['investment_total'] += value_data['current_value']
+                for account_id, value_data in account_snapshot.items():
+                    # Update datetime to the most recent one
+                    if date_totals[date_str]['datetime'] is None or value_data['datetime'] > date_totals[date_str]['datetime']:
+                        date_totals[date_str]['datetime'] = value_data['datetime']
+                    
+                    # Add to appropriate total
+                    if value_data['account_type'] == 'BANK':
+                        date_totals[date_str]['bank_total'] += value_data['current_value']
+                    elif value_data['account_type'] == 'INVESTMENT':
+                        date_totals[date_str]['investment_total'] += value_data['current_value']
+                
+                date_totals[date_str]['total_value'] = date_totals[date_str]['bank_total'] + date_totals[date_str]['investment_total']
             
-            for date_str, data in date_totals.items():
-                data['total_value'] = data['bank_total'] + data['investment_total']
+            # Sort dates for the chart
+            chart_dates = sorted(date_totals.keys())
             
-            sorted_dates = sorted(date_totals.keys())
-            
-            if sorted_dates:
+            if chart_dates:
                 trend_chart = go.Figure()
                 
                 dates = []
@@ -271,7 +301,7 @@ def investment_detail(request):
                 investment_totals = []
                 total_values_list = []
                 
-                for date_str in sorted_dates:
+                for date_str in chart_dates:
                     data = date_totals[date_str]
                     dates.append(date_str)
                     bank_totals.append(float(data['bank_total']))
