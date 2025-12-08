@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from django.contrib.auth.decorators import login_required
 from decimal import Decimal
 import plotly.graph_objs as go
@@ -24,11 +24,11 @@ def investment_detail(request):
     
     all_investment_values = AccountValue.objects.filter(
         account__account_type='INVESTMENT'
-    ).select_related('account').order_by('account', '-date_updated')
+    ).select_related('account').order_by('account', '-date', '-date_updated')
     
     all_bank_values = AccountValue.objects.filter(
         account__account_type='BANK'
-    ).select_related('account').order_by('account', '-date_updated')
+    ).select_related('account').order_by('account', '-date', '-date_updated')
     
     investment_account_values = []
     seen_investment_accounts = set()
@@ -53,9 +53,9 @@ def investment_detail(request):
         account_filter = filter_form.cleaned_data.get('account_filter')
         
         if start_date:
-            account_values = [av for av in account_values if av.date_updated.date() >= start_date]
+            account_values = [av for av in account_values if av.date >= start_date]
         if end_date:
-            account_values = [av for av in account_values if av.date_updated.date() <= end_date]
+            account_values = [av for av in account_values if av.date <= end_date]
         
         if account_filter:
             account_values = [av for av in account_values if av.account == account_filter]
@@ -117,7 +117,7 @@ def investment_detail(request):
     if investment_accounts.exists():
         all_chart_values = AccountValue.objects.filter(
             account__account_type='INVESTMENT'
-        ).select_related('account').order_by('date_updated')
+        ).select_related('account').order_by('date', 'date_updated')
         
         if filter_form.is_valid():
             start_date = filter_form.cleaned_data.get('start_date')
@@ -125,9 +125,9 @@ def investment_detail(request):
             account_filter = filter_form.cleaned_data.get('account_filter')
             
             if start_date:
-                all_chart_values = all_chart_values.filter(date_updated__date__gte=start_date)
+                all_chart_values = all_chart_values.filter(date__gte=start_date)
             if end_date:
-                all_chart_values = all_chart_values.filter(date_updated__date__lte=end_date)
+                all_chart_values = all_chart_values.filter(date__lte=end_date)
             
             if account_filter:
                 all_chart_values = all_chart_values.filter(account=account_filter)
@@ -141,14 +141,17 @@ def investment_detail(request):
             
             for value in all_chart_values:
                 account_key = f"{value.account.bank_name} - {value.account.account_abbr}"
-                date_str = value.date_updated.strftime('%Y-%m-%d')
+                # Use the date field instead of date_updated for proper grouping
+                date_str = str(value.date)
                 
                 if account_key not in account_date_values:
                     account_date_values[account_key] = {}
                 
+                # Use date for grouping, but keep datetime for comparison when same date
                 if date_str not in account_date_values[account_key] or value.date_updated > account_date_values[account_key][date_str]['datetime']:
                     account_date_values[account_key][date_str] = {
                         'datetime': value.date_updated,
+                        'date': value.date,
                         'market_value': float(value.current_value),
                         'booking_value': float(value.booking_value or 0)
                     }
@@ -214,7 +217,29 @@ def investment_detail(request):
     if bank_accounts.exists() or investment_accounts.exists():
         all_total_values = AccountValue.objects.filter(
             account__account_type__in=['BANK', 'INVESTMENT']
-        ).select_related('account').order_by('date_updated')
+        ).select_related('account').order_by('date', 'date_updated')
+        
+        # Apply filters if form is valid
+        if filter_form.is_valid():
+            start_date = filter_form.cleaned_data.get('start_date')
+            end_date = filter_form.cleaned_data.get('end_date')
+            account_filter = filter_form.cleaned_data.get('account_filter')
+            
+            if start_date:
+                all_total_values = all_total_values.filter(date__gte=start_date)
+            if end_date:
+                all_total_values = all_total_values.filter(date__lte=end_date)
+            
+            # If account filter is set, only show that account (and bank accounts if it's an investment account)
+            if account_filter:
+                # If filtering by an investment account, still include all bank accounts
+                if account_filter.account_type == 'INVESTMENT':
+                    all_total_values = all_total_values.filter(
+                        Q(account=account_filter) | Q(account__account_type='BANK')
+                    )
+                else:
+                    # If filtering by a bank account, only show that account
+                    all_total_values = all_total_values.filter(account=account_filter)
         
         if all_total_values.exists():
             # Get all distinct dates that have entries
@@ -224,7 +249,8 @@ def investment_detail(request):
             
             # First pass: collect all dates and accounts, and group values by date
             for value in all_total_values:
-                date_str = value.date_updated.strftime('%Y-%m-%d')
+                # Use the date field instead of date_updated for proper grouping
+                date_str = str(value.date)
                 account_id = value.account.id
                 all_dates.add(date_str)
                 all_accounts.add(account_id)
@@ -236,7 +262,8 @@ def investment_detail(request):
                     'account_id': account_id,
                     'account_type': value.account.account_type,
                     'current_value': value.current_value or Decimal('0.00'),
-                    'datetime': value.date_updated
+                    'datetime': value.date_updated,
+                    'date': value.date
                 })
             
             # For each date, keep only the latest value per account (remove duplicates on same date)
@@ -265,8 +292,9 @@ def investment_detail(request):
                     if check_date in account_values_by_date:
                         for value_data in account_values_by_date[check_date]:
                             account_id = value_data['account_id']
-                            # Use this value if we don't have one yet, or if this one is more recent
-                            if account_id not in account_snapshot or value_data['datetime'] > account_snapshot[account_id]['datetime']:
+                            # Use this value if we don't have one yet, or if this date is more recent
+                            # Compare by date field, not date_updated
+                            if account_id not in account_snapshot or value_data['date'] > account_snapshot[account_id]['date']:
                                 account_snapshot[account_id] = value_data
                 
                 # Now aggregate totals for this date

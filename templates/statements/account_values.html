@@ -116,9 +116,7 @@
                                                        name="account_{{ account.id }}" 
                                                        class="form-control" 
                                                        step="0.01" 
-                                                       min="0" 
-                                                       placeholder="Enter current balance"
-                                                       value="{% if account.id in current_values %}{{ current_values|lookup:account.id|lookup:"value" }}{% endif %}">
+                                                       min="0">
                                             </div>
                                         </div>
                                     </div>
@@ -164,9 +162,7 @@
                                                            name="account_{{ account.id }}" 
                                                            class="form-control" 
                                                            step="0.01" 
-                                                           min="0" 
-                                                           placeholder="Enter current market value"
-                                                           value="{% if account.id in current_values %}{{ current_values|lookup:account.id|lookup:"value" }}{% endif %}">
+                                                           min="0">
                                                 </div>
                                             </div>
                                             <div class="mb-2">
@@ -177,9 +173,7 @@
                                                            name="booking_{{ account.id }}" 
                                                            class="form-control" 
                                                            step="0.01" 
-                                                           min="0" 
-                                                           placeholder="Enter booking value"
-                                                           value="{% if account.id in current_values %}{{ current_values|lookup:account.id|lookup:"booking_value" }}{% endif %}">
+                                                           min="0">
                                                 </div>
                                             </div>
                                         </div>

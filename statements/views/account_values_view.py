@@ -97,7 +97,8 @@ def account_values(request):
     # Get current values for display
     current_values = {}
     for account in accounts:
-        latest_value = AccountValue.objects.filter(account=account).order_by('-date_updated').first()
+        # Order by date first (most recent date), then by date_updated to get the latest value
+        latest_value = AccountValue.objects.filter(account=account).order_by('-date', '-date_updated').first()
         if latest_value:
             current_values[account.id] = {
                 'value': latest_value.current_value,
